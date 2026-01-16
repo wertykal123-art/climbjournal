@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(npm install)",
+      "Bash(source ~/.nvm/nvm.sh)",
+      "Bash(source ~/.bashrc)",
+      "Bash(command -v apt-get:*)",
+      "Bash(command -v:*)",
+      "Bash(command -v docker:*)",
+      "Bash(curl:*)",
+      "Bash(sudo -E bash -)",
+      "Bash(sudo apt-get install:*)",
+      "Bash(bash)",
+      "Bash(export NVM_DIR=\"$HOME/.nvm\")",
+      "Bash([ -s \"$NVM_DIR/nvm.sh\" ])",
+      "Bash(. \"$NVM_DIR/nvm.sh\")",
+      "Bash(nvm install:*)",
+      "Bash(node --version:*)",
+      "Bash(npm --version)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker compose:*)",
+      "Bash(npx prisma generate)",
+      "Bash(npx prisma db push:*)",
+      "Bash(npm install:*)",
+      "Bash(git init:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String     @id @default(uuid())
+  email          String     @unique
+  username       String     @unique
+  displayName    String
+  passwordHash   String
+  profilePicture String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  locations      Location[]
+  routes         Route[]
+  climbs         Climb[]
+}
+
+model Location {
+  id          String   @id @default(uuid())
+  userId      String
+  name        String
+  type        String   // GYM or CRAG
+  address     String?
+  country     String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  routes      Route[]
+}
+
+model Route {
+  id               String   @id @default(uuid())
+  userId           String
+  locationId       String
+  name             String
+  heightMeters     Float?
+  protectionCount  Int?
+  visualId         String?
+  difficultyUIAA   String?
+  difficultyFrench String
+  setter           String?
+  description      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location         Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  climbs           Climb[]
+}
+
+model Climb {
+  id             String   @id @default(uuid())
+  userId         String
+  routeId        String
+  date           DateTime
+  climbType      String   // OS, FLASH, RP, PP, TOPROPE, AUTOBELAY, TRY
+  attemptCount   Int      @default(1)
+  personalRating Int?
+  comments       String?
+  points         Float
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  route          Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}

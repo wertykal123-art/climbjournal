@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-rock-50 text-rock-900 antialiased;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-carabiner text-white hover:bg-blue-700 focus:ring-carabiner;
+  }
+
+  .btn-secondary {
+    @apply btn bg-rock-200 text-rock-800 hover:bg-rock-300 focus:ring-rock-400;
+  }
+
+  .btn-danger {
+    @apply btn bg-fall text-white hover:bg-red-700 focus:ring-fall;
+  }
+
+  .btn-success {
+    @apply btn bg-send text-white hover:bg-green-700 focus:ring-send;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 border border-rock-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-carabiner focus:border-transparent transition-colors;
+  }
+
+  .input-error {
+    @apply input border-fall focus:ring-fall;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-rock-700 mb-1;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-rock-200 overflow-hidden;
+  }
+
+  .card-header {
+    @apply px-6 py-4 border-b border-rock-200;
+  }
+
+  .card-body {
+    @apply p-6;
+  }
+}
+
+@layer utilities {
+  .grade-green {
+    @apply bg-green-500 text-white;
+  }
+
+  .grade-yellow {
+    @apply bg-yellow-500 text-rock-900;
+  }
+
+  .grade-orange {
+    @apply bg-orange-500 text-white;
+  }
+
+  .grade-red {
+    @apply bg-red-500 text-white;
+  }
+
+  .grade-purple {
+    @apply bg-purple-600 text-white;
+  }
+
+  .grade-black {
+    @apply bg-rock-900 text-white;
+  }
+}
