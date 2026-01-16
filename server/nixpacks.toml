@@ -1,0 +1,6 @@
+# Force fresh build - updated 2024
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm run db:deploy && npm start"
