@@ -18,7 +18,7 @@ export async function getLocations(req: Request, res: Response, next: NextFuncti
     res.json(
       locations.map((loc) => ({
         ...loc,
-        routeCount: loc._count.routes,
+        routeCount: (loc as { _count: { routes: number } })._count.routes,
         _count: undefined,
       }))
     )
@@ -29,7 +29,7 @@ export async function getLocations(req: Request, res: Response, next: NextFuncti
 
 export async function getLocation(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { id } = req.params
+    const id = req.params.id as string
 
     const location = await prisma.location.findUnique({
       where: { id },
@@ -50,7 +50,7 @@ export async function getLocation(req: Request, res: Response, next: NextFunctio
 
     res.json({
       ...location,
-      routeCount: location._count.routes,
+      routeCount: (location as { _count: { routes: number } })._count.routes,
       _count: undefined,
     })
   } catch (error) {
@@ -77,7 +77,7 @@ export async function createLocation(req: Request, res: Response, next: NextFunc
 
 export async function updateLocation(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { id } = req.params
+    const id = req.params.id as string
     const data = req.body as UpdateLocationInput
 
     const existing = await prisma.location.findUnique({
@@ -104,7 +104,7 @@ export async function updateLocation(req: Request, res: Response, next: NextFunc
 
     res.json({
       ...location,
-      routeCount: location._count.routes,
+      routeCount: (location as { _count: { routes: number } })._count.routes,
       _count: undefined,
     })
   } catch (error) {
@@ -114,7 +114,7 @@ export async function updateLocation(req: Request, res: Response, next: NextFunc
 
 export async function deleteLocation(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { id } = req.params
+    const id = req.params.id as string
 
     const existing = await prisma.location.findUnique({
       where: { id },

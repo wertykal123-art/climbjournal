@@ -55,7 +55,7 @@ export async function getRoutes(req: Request, res: Response, next: NextFunction)
     res.json({
       data: filteredRoutes.map((r) => ({
         ...r,
-        climbCount: r._count.climbs,
+        climbCount: (r as { _count: { climbs: number } })._count.climbs,
         _count: undefined,
       })),
       total,
@@ -70,7 +70,7 @@ export async function getRoutes(req: Request, res: Response, next: NextFunction)
 
 export async function getRoute(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { id } = req.params
+    const id = req.params.id as string
 
     const route = await prisma.route.findUnique({
       where: { id },
@@ -94,7 +94,7 @@ export async function getRoute(req: Request, res: Response, next: NextFunction):
 
     res.json({
       ...route,
-      climbCount: route._count.climbs,
+      climbCount: (route as { _count: { climbs: number } })._count.climbs,
       _count: undefined,
     })
   } catch (error) {
@@ -104,7 +104,7 @@ export async function getRoute(req: Request, res: Response, next: NextFunction):
 
 export async function getLocationRoutes(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { locationId } = req.params
+    const locationId = req.params.locationId as string
 
     const location = await prisma.location.findUnique({
       where: { id: locationId },
@@ -131,7 +131,7 @@ export async function getLocationRoutes(req: Request, res: Response, next: NextF
     res.json(
       routes.map((r) => ({
         ...r,
-        climbCount: r._count.climbs,
+        climbCount: (r as { _count: { climbs: number } })._count.climbs,
         _count: undefined,
       }))
     )
@@ -177,7 +177,7 @@ export async function createRoute(req: Request, res: Response, next: NextFunctio
 
 export async function updateRoute(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { id } = req.params
+    const id = req.params.id as string
     const data = req.body as UpdateRouteInput
 
     const existing = await prisma.route.findUnique({
@@ -212,7 +212,7 @@ export async function updateRoute(req: Request, res: Response, next: NextFunctio
 
     res.json({
       ...route,
-      climbCount: route._count.climbs,
+      climbCount: (route as { _count: { climbs: number } })._count.climbs,
       _count: undefined,
     })
   } catch (error) {
@@ -222,7 +222,7 @@ export async function updateRoute(req: Request, res: Response, next: NextFunctio
 
 export async function deleteRoute(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { id } = req.params
+    const id = req.params.id as string
 
     const existing = await prisma.route.findUnique({
       where: { id },

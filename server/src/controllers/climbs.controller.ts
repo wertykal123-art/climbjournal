@@ -66,7 +66,7 @@ export async function getClimbs(req: Request, res: Response, next: NextFunction)
 
 export async function getClimb(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { id } = req.params
+    const id = req.params.id as string
 
     const climb = await prisma.climb.findUnique({
       where: { id },
@@ -97,7 +97,7 @@ export async function getClimb(req: Request, res: Response, next: NextFunction):
 
 export async function getRouteClimbs(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { routeId } = req.params
+    const routeId = req.params.routeId as string
 
     const route = await prisma.route.findUnique({
       where: { id: routeId },
@@ -166,7 +166,7 @@ export async function createClimb(req: Request, res: Response, next: NextFunctio
 
 export async function updateClimb(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { id } = req.params
+    const id = req.params.id as string
     const data = req.body as UpdateClimbInput
 
     const existing = await prisma.climb.findUnique({
@@ -188,7 +188,7 @@ export async function updateClimb(req: Request, res: Response, next: NextFunctio
       updateData.date = new Date(data.date)
     }
 
-    if (data.climbType) {
+    if (data.climbType && existing.route) {
       updateData.points = calculatePoints(existing.route.difficultyFrench, data.climbType)
     }
 
@@ -214,7 +214,7 @@ export async function updateClimb(req: Request, res: Response, next: NextFunctio
 
 export async function deleteClimb(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { id } = req.params
+    const id = req.params.id as string
 
     const existing = await prisma.climb.findUnique({
       where: { id },
