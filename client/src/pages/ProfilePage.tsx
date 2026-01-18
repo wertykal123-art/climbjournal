@@ -12,7 +12,7 @@ import { Download, Upload, Trash2 } from 'lucide-react'
 import Modal from '@/components/ui/Modal'
 
 export default function ProfilePage() {
-  const { user, updateUser, logout } = useAuth()
+  const { user, updateUser } = useAuth()
 
   const [displayName, setDisplayName] = useState(user?.displayName || '')
   const [username, setUsername] = useState(user?.username || '')
@@ -214,7 +214,7 @@ export default function ProfilePage() {
                 <p className="font-medium text-rock-900">Import Data</p>
                 <p className="text-sm text-rock-500">Import climbing data from a JSON file</p>
               </div>
-              <label>
+              <label className="cursor-pointer">
                 <input
                   type="file"
                   accept=".json"
@@ -222,10 +222,10 @@ export default function ProfilePage() {
                   className="hidden"
                   disabled={isImporting}
                 />
-                <Button variant="secondary" as="span" className="cursor-pointer" disabled={isImporting}>
+                <span className="inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-rock-200 text-rock-800 hover:bg-rock-300 focus:ring-rock-400 px-4 py-2 text-base">
                   <Upload className="w-4 h-4 mr-2" />
                   {isImporting ? 'Importing...' : 'Import'}
-                </Button>
+                </span>
               </label>
             </div>
           </div>

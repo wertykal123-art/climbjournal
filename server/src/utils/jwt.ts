@@ -7,17 +7,15 @@ export interface TokenPayload {
 }
 
 export function signAccessToken(payload: TokenPayload): string {
-  const options: SignOptions = {
-    expiresIn: config.jwt.expiresIn as string,
-  }
-  return jwt.sign(payload, config.jwt.secret, options)
+  return jwt.sign(payload, config.jwt.secret, {
+    expiresIn: config.jwt.expiresIn,
+  } as SignOptions)
 }
 
 export function signRefreshToken(payload: TokenPayload): string {
-  const options: SignOptions = {
-    expiresIn: config.jwt.refreshExpiresIn as string,
-  }
-  return jwt.sign(payload, config.jwt.secret, options)
+  return jwt.sign(payload, config.jwt.secret, {
+    expiresIn: config.jwt.refreshExpiresIn,
+  } as SignOptions)
 }
 
 export function verifyToken(token: string): TokenPayload {

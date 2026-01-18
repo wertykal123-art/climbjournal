@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useClimbs } from '@/hooks/useClimbs'
 import { useRoutes } from '@/hooks/useRoutes'
 import ClimbCard from '@/components/climbs/ClimbCard'
@@ -10,7 +10,7 @@ import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { showToast } from '@/components/ui/Toast'
-import { Climb, ClimbType } from '@/types/models'
+import { Climb } from '@/types/models'
 import { BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'
 
 const CLIMB_TYPE_OPTIONS = [
@@ -33,7 +33,7 @@ export default function JournalPage() {
     limit: 20,
   })
 
-  const { climbs, total, page, totalPages, isLoading, createClimb, updateClimb, deleteClimb, refetch } = useClimbs(filters)
+  const { climbs, page, totalPages, isLoading, createClimb, updateClimb, deleteClimb, refetch } = useClimbs(filters)
   const { routes } = useRoutes()
 
   const [showModal, setShowModal] = useState(false)
