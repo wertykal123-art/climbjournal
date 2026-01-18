@@ -1,4 +1,12 @@
-# Force fresh build - updated 2024
+# Railway/Nixpacks configuration
+providers = ["node"]
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "npm"]
+
+[phases.install]
+cmds = ["npm ci"]
+
 [phases.build]
 cmds = ["npm run build"]
 
