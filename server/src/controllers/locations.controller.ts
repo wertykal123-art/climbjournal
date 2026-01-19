@@ -2,12 +2,30 @@ import { Request, Response, NextFunction } from 'express'
 import { prisma } from '../models/prisma.js'
 import { CreateLocationInput, UpdateLocationInput } from '../schemas/location.schema.js'
 import { NotFoundError, ForbiddenError } from '../middleware/error.middleware.js'
+import { getFriendIds } from '../utils/access.js'
+
+const userSelect = {
+  id: true,
+  username: true,
+  displayName: true,
+  profilePicture: true,
+}
 
 export async function getLocations(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    const userId = req.user!.userId
+    const friendIds = await getFriendIds(userId)
+
     const locations = await prisma.location.findMany({
-      where: { userId: req.user!.userId },
+      where: {
+        OR: [
+          { userId },
+          { isPublic: true },
+          { userId: { in: friendIds } },
+        ],
+      },
       include: {
+        user: { select: userSelect },
         _count: {
           select: { routes: true },
         },
@@ -30,10 +48,12 @@ export async function getLocations(req: Request, res: Response, next: NextFuncti
 export async function getLocation(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const id = req.params.id as string
+    const userId = req.user!.userId
 
     const location = await prisma.location.findUnique({
       where: { id },
       include: {
+        user: { select: userSelect },
         _count: {
           select: { routes: true },
         },
@@ -44,8 +64,12 @@ export async function getLocation(req: Request, res: Response, next: NextFunctio
       throw new NotFoundError('Location')
     }
 
-    if (location.userId !== req.user!.userId) {
-      throw new ForbiddenError('Not authorized to access this location')
+    const isOwner = location.userId === userId
+    if (!isOwner && !location.isPublic) {
+      const friendIds = await getFriendIds(userId)
+      if (!friendIds.includes(location.userId)) {
+        throw new ForbiddenError('Not authorized to access this location')
+      }
     }
 
     res.json({

@@ -22,6 +22,7 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
   const [setter, setSetter] = useState('')
   const [heightMeters, setHeightMeters] = useState('')
   const [description, setDescription] = useState('')
+  const [isPublic, setIsPublic] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
@@ -33,6 +34,7 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
       setSetter(route.setter || '')
       setHeightMeters(route.heightMeters?.toString() || '')
       setDescription(route.description || '')
+      setIsPublic(route.isPublic || false)
     } else if (defaultLocationId) {
       setLocationId(defaultLocationId)
     } else if (locations.length > 0) {
@@ -53,6 +55,7 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
         setter: setter || undefined,
         heightMeters: heightMeters ? parseFloat(heightMeters) : undefined,
         description: description || undefined,
+        isPublic,
       })
     } finally {
       setIsLoading(false)
@@ -123,6 +126,19 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
           className="w-full px-3 py-2 border border-rock-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-carabiner focus:border-transparent"
           placeholder="Beta, notes about the route..."
         />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="isPublicRoute"
+          checked={isPublic}
+          onChange={(e) => setIsPublic(e.target.checked)}
+          className="w-4 h-4 text-carabiner border-rock-300 rounded focus:ring-carabiner"
+        />
+        <label htmlFor="isPublicRoute" className="text-sm text-rock-700">
+          Make this route public (visible to all users)
+        </label>
       </div>
 
       <div className="flex gap-3 justify-end">

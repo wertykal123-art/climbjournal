@@ -6,6 +6,7 @@ import {
   BookOpen,
   BarChart3,
   Trophy,
+  Users,
   User,
   X,
 } from 'lucide-react'
@@ -22,6 +23,7 @@ const navItems = [
   { to: '/journal', label: 'Journal', icon: BookOpen },
   { to: '/stats', label: 'Statistics', icon: BarChart3 },
   { to: '/leaderboard', label: 'Leaderboard', icon: Trophy },
+  { to: '/friends', label: 'Friends', icon: Users },
   { to: '/profile', label: 'Profile', icon: User },
 ]
 

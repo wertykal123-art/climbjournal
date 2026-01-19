@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
-import { Route as RouteIcon, MoreVertical, Pencil, Trash2, CheckCircle } from 'lucide-react'
+import { Route as RouteIcon, MoreVertical, Pencil, Trash2, CheckCircle, Globe, User } from 'lucide-react'
 import { Route } from '@/types/models'
 import { Card, CardBody } from '@/components/ui/Card'
 import GradeBadge from './GradeBadge'
 import { useState, useRef, useEffect } from 'react'
+import { useAuth } from '@/context/AuthContext'
 
 interface RouteCardProps {
   route: Route
@@ -13,6 +14,8 @@ interface RouteCardProps {
 }
 
 export default function RouteCard({ route, onEdit, onDelete, onLogClimb }: RouteCardProps) {
+  const { user } = useAuth()
+  const isOwner = user?.id === route.userId
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -63,7 +66,7 @@ export default function RouteCard({ route, onEdit, onDelete, onLogClimb }: Route
                     Log Climb
                   </button>
                 )}
-                {onEdit && (
+                {isOwner && onEdit && (
                   <button
                     onClick={() => {
                       setShowMenu(false)
@@ -75,7 +78,7 @@ export default function RouteCard({ route, onEdit, onDelete, onLogClimb }: Route
                     Edit
                   </button>
                 )}
-                {onDelete && (
+                {isOwner && onDelete && (
                   <button
                     onClick={() => {
                       setShowMenu(false)
@@ -92,7 +95,7 @@ export default function RouteCard({ route, onEdit, onDelete, onLogClimb }: Route
           </div>
         </div>
 
-        <div className="mt-3 flex items-center gap-4 text-sm text-rock-600">
+        <div className="mt-3 flex items-center flex-wrap gap-x-4 gap-y-2 text-sm text-rock-600">
           {route.visualId && (
             <span className="px-2 py-0.5 bg-rock-100 rounded text-rock-700">
               {route.visualId}
@@ -103,6 +106,18 @@ export default function RouteCard({ route, onEdit, onDelete, onLogClimb }: Route
             <RouteIcon className="w-4 h-4" />
             <span>{route.climbCount || 0} climbs</span>
           </div>
+          {route.isPublic && (
+            <div className="flex items-center gap-1 text-send">
+              <Globe className="w-4 h-4" />
+              <span>Public</span>
+            </div>
+          )}
+          {!isOwner && route.user && (
+            <div className="flex items-center gap-1">
+              <User className="w-4 h-4" />
+              <span>{route.user.displayName}</span>
+            </div>
+          )}
         </div>
       </CardBody>
     </Card>

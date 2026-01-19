@@ -4,22 +4,42 @@ import { CreateRouteInput, UpdateRouteInput, RouteFilters } from '../schemas/rou
 import { NotFoundError, ForbiddenError } from '../middleware/error.middleware.js'
 import { getGradeIndex } from '../utils/grades.js'
 import { frenchToUIAA } from '../utils/grades.js'
+import { getFriendIds } from '../utils/access.js'
+
+const userSelect = {
+  id: true,
+  username: true,
+  displayName: true,
+  profilePicture: true,
+}
 
 export async function getRoutes(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { locationId, minGrade, maxGrade, search, page, limit } = req.query as unknown as RouteFilters
+    const userId = req.user!.userId
+    const friendIds = await getFriendIds(userId)
 
-    const where: Record<string, unknown> = { userId: req.user!.userId }
+    const where: Record<string, unknown> = {
+      OR: [
+        { userId },
+        { isPublic: true },
+        { userId: { in: friendIds } },
+      ],
+    }
 
     if (locationId) {
       where.locationId = locationId
     }
 
     if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { visualId: { contains: search, mode: 'insensitive' } },
-        { setter: { contains: search, mode: 'insensitive' } },
+      where.AND = [
+        {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { visualId: { contains: search, mode: 'insensitive' } },
+            { setter: { contains: search, mode: 'insensitive' } },
+          ],
+        },
       ]
     }
 
@@ -27,6 +47,7 @@ export async function getRoutes(req: Request, res: Response, next: NextFunction)
       prisma.route.findMany({
         where,
         include: {
+          user: { select: userSelect },
           location: {
             select: { id: true, name: true, type: true },
           },
@@ -71,10 +92,12 @@ export async function getRoutes(req: Request, res: Response, next: NextFunction)
 export async function getRoute(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const id = req.params.id as string
+    const userId = req.user!.userId
 
     const route = await prisma.route.findUnique({
       where: { id },
       include: {
+        user: { select: userSelect },
         location: {
           select: { id: true, name: true, type: true },
         },
@@ -88,8 +111,12 @@ export async function getRoute(req: Request, res: Response, next: NextFunction):
       throw new NotFoundError('Route')
     }
 
-    if (route.userId !== req.user!.userId) {
-      throw new ForbiddenError('Not authorized to access this route')
+    const isOwner = route.userId === userId
+    if (!isOwner && !route.isPublic) {
+      const friendIds = await getFriendIds(userId)
+      if (!friendIds.includes(route.userId)) {
+        throw new ForbiddenError('Not authorized to access this route')
+      }
     }
 
     res.json({
@@ -105,6 +132,7 @@ export async function getRoute(req: Request, res: Response, next: NextFunction):
 export async function getLocationRoutes(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const locationId = req.params.locationId as string
+    const userId = req.user!.userId
 
     const location = await prisma.location.findUnique({
       where: { id: locationId },
@@ -114,13 +142,18 @@ export async function getLocationRoutes(req: Request, res: Response, next: NextF
       throw new NotFoundError('Location')
     }
 
-    if (location.userId !== req.user!.userId) {
-      throw new ForbiddenError('Not authorized to access this location')
+    const isOwner = location.userId === userId
+    if (!isOwner && !location.isPublic) {
+      const friendIds = await getFriendIds(userId)
+      if (!friendIds.includes(location.userId)) {
+        throw new ForbiddenError('Not authorized to access this location')
+      }
     }
 
     const routes = await prisma.route.findMany({
       where: { locationId },
       include: {
+        user: { select: userSelect },
         _count: {
           select: { climbs: true },
         },

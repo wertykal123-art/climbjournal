@@ -6,6 +6,7 @@ export const createLocationSchema = z.object({
   address: z.string().max(500).optional(),
   country: z.string().max(100).optional(),
   description: z.string().max(2000).optional(),
+  isPublic: z.boolean().default(false),
 })
 
 export const updateLocationSchema = z.object({
@@ -14,6 +15,7 @@ export const updateLocationSchema = z.object({
   address: z.string().max(500).optional().nullable(),
   country: z.string().max(100).optional().nullable(),
   description: z.string().max(2000).optional().nullable(),
+  isPublic: z.boolean().optional(),
 })
 
 export type CreateLocationInput = z.infer<typeof createLocationSchema>

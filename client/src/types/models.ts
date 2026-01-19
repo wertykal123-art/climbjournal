@@ -2,6 +2,8 @@ export type LocationType = 'GYM' | 'CRAG'
 
 export type ClimbType = 'OS' | 'FLASH' | 'RP' | 'PP' | 'TOPROPE' | 'AUTOBELAY' | 'TRY'
 
+export type FriendshipStatus = 'PENDING' | 'ACCEPTED'
+
 export interface User {
   id: string
   email: string
@@ -12,6 +14,28 @@ export interface User {
   updatedAt: string
 }
 
+export interface UserSummary {
+  id: string
+  username: string
+  displayName: string
+  profilePicture?: string
+}
+
+export interface Friendship {
+  id: string
+  requesterId: string
+  addresseeId: string
+  status: FriendshipStatus
+  createdAt: string
+  updatedAt: string
+  requester?: UserSummary
+  addressee?: UserSummary
+}
+
+export interface Friend extends UserSummary {
+  friendshipId: string
+}
+
 export interface Location {
   id: string
   userId: string
@@ -20,9 +44,11 @@ export interface Location {
   address?: string
   country?: string
   description?: string
+  isPublic?: boolean
   createdAt: string
   updatedAt: string
   routeCount?: number
+  user?: UserSummary
 }
 
 export interface Route {
@@ -37,10 +63,12 @@ export interface Route {
   difficultyFrench: string
   setter?: string
   description?: string
+  isPublic?: boolean
   createdAt: string
   updatedAt: string
   location?: Location
   climbCount?: number
+  user?: UserSummary
 }
 
 export interface Climb {

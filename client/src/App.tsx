@@ -12,6 +12,7 @@ import JournalPage from '@/pages/JournalPage'
 import StatsPage from '@/pages/StatsPage'
 import LeaderboardPage from '@/pages/LeaderboardPage'
 import ProfilePage from '@/pages/ProfilePage'
+import FriendsPage from '@/pages/FriendsPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="/journal" element={<JournalPage />} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
+        <Route path="/friends" element={<FriendsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
 

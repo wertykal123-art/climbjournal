@@ -3,6 +3,7 @@ import { prisma } from '../models/prisma.js'
 import { CreateClimbInput, UpdateClimbInput, ClimbFilters } from '../schemas/climb.schema.js'
 import { NotFoundError, ForbiddenError } from '../middleware/error.middleware.js'
 import { calculatePoints } from '../utils/points.js'
+import { getFriendIds } from '../utils/access.js'
 
 export async function getClimbs(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -98,6 +99,7 @@ export async function getClimb(req: Request, res: Response, next: NextFunction):
 export async function getRouteClimbs(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const routeId = req.params.routeId as string
+    const userId = req.user!.userId
 
     const route = await prisma.route.findUnique({
       where: { id: routeId },
@@ -107,12 +109,16 @@ export async function getRouteClimbs(req: Request, res: Response, next: NextFunc
       throw new NotFoundError('Route')
     }
 
-    if (route.userId !== req.user!.userId) {
-      throw new ForbiddenError('Not authorized to access this route')
+    const isOwner = route.userId === userId
+    if (!isOwner && !route.isPublic) {
+      const friendIds = await getFriendIds(userId)
+      if (!friendIds.includes(route.userId)) {
+        throw new ForbiddenError('Not authorized to access this route')
+      }
     }
 
     const climbs = await prisma.climb.findMany({
-      where: { routeId },
+      where: { routeId, userId },
       orderBy: { date: 'desc' },
     })
 
@@ -125,6 +131,7 @@ export async function getRouteClimbs(req: Request, res: Response, next: NextFunc
 export async function createClimb(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const data = req.body as CreateClimbInput
+    const userId = req.user!.userId
 
     const route = await prisma.route.findUnique({
       where: { id: data.routeId },
@@ -134,8 +141,12 @@ export async function createClimb(req: Request, res: Response, next: NextFunctio
       throw new NotFoundError('Route')
     }
 
-    if (route.userId !== req.user!.userId) {
-      throw new ForbiddenError('Not authorized to log climbs on this route')
+    const isOwner = route.userId === userId
+    if (!isOwner && !route.isPublic) {
+      const friendIds = await getFriendIds(userId)
+      if (!friendIds.includes(route.userId)) {
+        throw new ForbiddenError('Not authorized to log climbs on this route')
+      }
     }
 
     const points = calculatePoints(route.difficultyFrench, data.climbType)

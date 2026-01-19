@@ -29,6 +29,7 @@ export interface CreateLocationRequest {
   address?: string
   country?: string
   description?: string
+  isPublic?: boolean
 }
 
 export interface UpdateLocationRequest {
@@ -37,6 +38,7 @@ export interface UpdateLocationRequest {
   address?: string
   country?: string
   description?: string
+  isPublic?: boolean
 }
 
 export interface CreateRouteRequest {
@@ -49,6 +51,7 @@ export interface CreateRouteRequest {
   visualId?: string
   setter?: string
   description?: string
+  isPublic?: boolean
 }
 
 export interface UpdateRouteRequest {
@@ -60,6 +63,15 @@ export interface UpdateRouteRequest {
   visualId?: string
   setter?: string
   description?: string
+  isPublic?: boolean
+}
+
+export interface SendFriendRequestRequest {
+  addresseeId: string
+}
+
+export interface UpdateFriendRequestRequest {
+  action: 'accept' | 'reject'
 }
 
 export interface CreateClimbRequest {

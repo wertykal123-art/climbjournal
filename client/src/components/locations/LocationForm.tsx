@@ -17,6 +17,7 @@ export default function LocationForm({ location, onSubmit, onCancel }: LocationF
   const [address, setAddress] = useState('')
   const [country, setCountry] = useState('')
   const [description, setDescription] = useState('')
+  const [isPublic, setIsPublic] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export default function LocationForm({ location, onSubmit, onCancel }: LocationF
       setAddress(location.address || '')
       setCountry(location.country || '')
       setDescription(location.description || '')
+      setIsPublic(location.isPublic || false)
     }
   }, [location])
 
@@ -40,6 +42,7 @@ export default function LocationForm({ location, onSubmit, onCancel }: LocationF
         address: address || undefined,
         country: country || undefined,
         description: description || undefined,
+        isPublic,
       })
     } finally {
       setIsLoading(false)
@@ -91,6 +94,19 @@ export default function LocationForm({ location, onSubmit, onCancel }: LocationF
           className="w-full px-3 py-2 border border-rock-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-carabiner focus:border-transparent"
           placeholder="Notes about this location..."
         />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="isPublic"
+          checked={isPublic}
+          onChange={(e) => setIsPublic(e.target.checked)}
+          className="w-4 h-4 text-carabiner border-rock-300 rounded focus:ring-carabiner"
+        />
+        <label htmlFor="isPublic" className="text-sm text-rock-700">
+          Make this location public (visible to all users)
+        </label>
       </div>
 
       <div className="flex gap-3 justify-end">
