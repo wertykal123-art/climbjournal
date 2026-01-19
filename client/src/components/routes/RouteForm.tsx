@@ -1,11 +1,38 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Route, Location } from '@/types/models'
+import { Route, Location, StoneType } from '@/types/models'
 import { CreateRouteRequest } from '@/types/api'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import { getGradeOptionsForSystem } from '@/utils/grades'
 import { useGradingSystem } from '@/hooks/useGradingSystem'
+
+const STONE_TYPE_OPTIONS: { value: StoneType; label: string }[] = [
+  { value: 'GRANITE', label: 'Granite' },
+  { value: 'LIMESTONE', label: 'Limestone' },
+  { value: 'SANDSTONE', label: 'Sandstone' },
+  { value: 'GNEISS', label: 'Gneiss' },
+  { value: 'BASALT', label: 'Basalt' },
+  { value: 'CONGLOMERATE', label: 'Conglomerate' },
+  { value: 'QUARTZITE', label: 'Quartzite' },
+  { value: 'SLATE', label: 'Slate' },
+  { value: 'SCHIST', label: 'Schist' },
+  { value: 'TUFF', label: 'Tuff' },
+  { value: 'OTHER', label: 'Other' },
+]
+
+const PRESET_COLORS = [
+  '#EF4444', // Red
+  '#F97316', // Orange
+  '#EAB308', // Yellow
+  '#22C55E', // Green
+  '#3B82F6', // Blue
+  '#8B5CF6', // Purple
+  '#EC4899', // Pink
+  '#FFFFFF', // White
+  '#000000', // Black
+  '#6B7280', // Gray
+]
 
 interface RouteFormProps {
   route?: Route | null
@@ -23,6 +50,8 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
   const [setter, setSetter] = useState('')
   const [heightMeters, setHeightMeters] = useState('')
   const [description, setDescription] = useState('')
+  const [color, setColor] = useState('')
+  const [stoneType, setStoneType] = useState<StoneType | ''>('')
   const [isPublic, setIsPublic] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -48,6 +77,8 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
       setSetter(route.setter || '')
       setHeightMeters(route.heightMeters?.toString() || '')
       setDescription(route.description || '')
+      setColor(route.color || '')
+      setStoneType(route.stoneType || '')
       setIsPublic(route.isPublic || false)
     } else if (defaultLocationId) {
       setLocationId(defaultLocationId)
@@ -69,6 +100,8 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
         setter: setter || undefined,
         heightMeters: heightMeters ? parseFloat(heightMeters) : undefined,
         description: description || undefined,
+        color: color || undefined,
+        stoneType: stoneType || undefined,
         isPublic,
       })
     } finally {
@@ -127,6 +160,71 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
         onChange={(e) => setSetter(e.target.value)}
         placeholder="Route setter name"
       />
+
+      {selectedLocation?.type === 'GYM' && (
+        <div>
+          <label className="block text-sm font-medium text-rock-700 mb-2">
+            Hold Color
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {PRESET_COLORS.map((presetColor) => (
+              <button
+                key={presetColor}
+                type="button"
+                onClick={() => setColor(presetColor)}
+                className={`w-8 h-8 rounded-full border-2 transition-transform ${
+                  color === presetColor
+                    ? 'border-carabiner scale-110 ring-2 ring-carabiner ring-offset-2'
+                    : 'border-rock-300 hover:scale-105'
+                }`}
+                style={{ backgroundColor: presetColor }}
+                title={presetColor}
+              />
+            ))}
+            <div className="relative">
+              <input
+                type="color"
+                value={color || '#3B82F6'}
+                onChange={(e) => setColor(e.target.value)}
+                className="w-8 h-8 rounded-full cursor-pointer opacity-0 absolute inset-0"
+              />
+              <div
+                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center ${
+                  color && !PRESET_COLORS.includes(color)
+                    ? 'border-carabiner ring-2 ring-carabiner ring-offset-2'
+                    : 'border-rock-300'
+                }`}
+                style={{ backgroundColor: color && !PRESET_COLORS.includes(color) ? color : '#E5E7EB' }}
+              >
+                {(!color || PRESET_COLORS.includes(color)) && (
+                  <span className="text-xs text-rock-500">+</span>
+                )}
+              </div>
+            </div>
+            {color && (
+              <button
+                type="button"
+                onClick={() => setColor('')}
+                className="text-xs text-rock-500 hover:text-rock-700 self-center ml-2"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {selectedLocation?.type === 'CRAG' && (
+        <Select
+          label="Stone Type"
+          value={stoneType}
+          onChange={(e) => setStoneType(e.target.value as StoneType | '')}
+          options={[
+            { value: '', label: 'Select stone type...' },
+            ...STONE_TYPE_OPTIONS,
+          ]}
+        />
+      )}
 
       <div>
         <label className="block text-sm font-medium text-rock-700 mb-1">

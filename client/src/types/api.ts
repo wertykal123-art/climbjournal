@@ -53,6 +53,8 @@ export interface CreateRouteRequest {
   visualId?: string
   setter?: string
   description?: string
+  color?: string
+  stoneType?: string
   isPublic?: boolean
 }
 
@@ -65,6 +67,8 @@ export interface UpdateRouteRequest {
   visualId?: string
   setter?: string
   description?: string
+  color?: string
+  stoneType?: string
   isPublic?: boolean
 }
 

@@ -86,6 +86,8 @@ model Route {
   difficultyFrench String
   setter           String?
   description      String?
+  color            String?  // Hex color for indoor gym routes (e.g., "#FF5733")
+  stoneType        String?  // Rock type for outdoor crags (e.g., "GRANITE", "LIMESTONE")
   isPublic         Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

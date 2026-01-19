@@ -1,11 +1,25 @@
 import { Link } from 'react-router-dom'
-import { Route as RouteIcon, MoreVertical, Pencil, Trash2, CheckCircle, Globe, User } from 'lucide-react'
-import { Route } from '@/types/models'
+import { Route as RouteIcon, MoreVertical, Pencil, Trash2, CheckCircle, Globe, User, Mountain } from 'lucide-react'
+import { Route, StoneType } from '@/types/models'
 import { Card, CardBody } from '@/components/ui/Card'
 import GradeBadge from './GradeBadge'
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { useGradingSystem } from '@/hooks/useGradingSystem'
+
+const STONE_TYPE_LABELS: Record<StoneType, string> = {
+  GRANITE: 'Granite',
+  LIMESTONE: 'Limestone',
+  SANDSTONE: 'Sandstone',
+  GNEISS: 'Gneiss',
+  BASALT: 'Basalt',
+  CONGLOMERATE: 'Conglomerate',
+  QUARTZITE: 'Quartzite',
+  SLATE: 'Slate',
+  SCHIST: 'Schist',
+  TUFF: 'Tuff',
+  OTHER: 'Other',
+}
 
 interface RouteCardProps {
   route: Route
@@ -39,7 +53,16 @@ export default function RouteCard({ route, onEdit, onDelete, onLogClimb }: Route
             <div className="flex items-center gap-3">
               <GradeBadge grade={route.difficultyFrench} size="lg" system={getGradeBadgeSystem(route.location)} />
               <div>
-                <h3 className="font-semibold text-rock-900">{route.name}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-rock-900">{route.name}</h3>
+                  {route.color && (
+                    <span
+                      className="w-4 h-4 rounded-full border border-rock-300 flex-shrink-0"
+                      style={{ backgroundColor: route.color }}
+                      title={`Hold color: ${route.color}`}
+                    />
+                  )}
+                </div>
                 {route.location && (
                   <p className="text-sm text-rock-500">{route.location.name}</p>
                 )}
@@ -102,6 +125,12 @@ export default function RouteCard({ route, onEdit, onDelete, onLogClimb }: Route
             <span className="px-2 py-0.5 bg-rock-100 rounded text-rock-700">
               {route.visualId}
             </span>
+          )}
+          {route.stoneType && (
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 rounded text-amber-800">
+              <Mountain className="w-3.5 h-3.5" />
+              <span>{STONE_TYPE_LABELS[route.stoneType]}</span>
+            </div>
           )}
           {route.setter && <span>Set by {route.setter}</span>}
           <div className="flex items-center gap-1">

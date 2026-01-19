@@ -8,6 +8,19 @@ export type GradingSystem = 'FRENCH' | 'UIAA'
 
 export type UserGradingPreference = 'FRENCH' | 'UIAA' | 'LOCATION_DEFAULT'
 
+export type StoneType =
+  | 'GRANITE'
+  | 'LIMESTONE'
+  | 'SANDSTONE'
+  | 'GNEISS'
+  | 'BASALT'
+  | 'CONGLOMERATE'
+  | 'QUARTZITE'
+  | 'SLATE'
+  | 'SCHIST'
+  | 'TUFF'
+  | 'OTHER'
+
 export interface User {
   id: string
   email: string
@@ -69,6 +82,8 @@ export interface Route {
   difficultyFrench: string
   setter?: string
   description?: string
+  color?: string
+  stoneType?: StoneType
   isPublic?: boolean
   createdAt: string
   updatedAt: string
