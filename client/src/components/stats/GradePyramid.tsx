@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { GradeDistribution } from '@/types/models'
 import {
   BarChart,
@@ -10,6 +11,8 @@ import {
   Cell,
 } from 'recharts'
 import { getGradeColorHex } from '@/utils/colors'
+import { useGradingSystem } from '@/hooks/useGradingSystem'
+import { frenchToUIAA } from '@/utils/grades'
 
 interface GradePyramidProps {
   data: GradeDistribution[]
@@ -17,6 +20,17 @@ interface GradePyramidProps {
 }
 
 export default function GradePyramid({ data, height = 300 }: GradePyramidProps) {
+  const { getEffectiveSystem } = useGradingSystem()
+  const effectiveSystem = getEffectiveSystem(null)
+
+  // Convert grades based on user preference and reverse to show hardest at top
+  const pyramidData = useMemo(() => {
+    return [...data].reverse().map((entry) => ({
+      ...entry,
+      displayGrade: effectiveSystem === 'UIAA' ? frenchToUIAA(entry.grade) : entry.grade,
+    }))
+  }, [data, effectiveSystem])
+
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-[300px] text-rock-500">
@@ -24,9 +38,6 @@ export default function GradePyramid({ data, height = 300 }: GradePyramidProps) 
       </div>
     )
   }
-
-  // Reverse to show hardest at top
-  const pyramidData = [...data].reverse()
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -39,7 +50,7 @@ export default function GradePyramid({ data, height = 300 }: GradePyramidProps) 
         <XAxis type="number" tick={{ fontSize: 12 }} stroke="#94a3b8" />
         <YAxis
           type="category"
-          dataKey="grade"
+          dataKey="displayGrade"
           tick={{ fontSize: 12, fontWeight: 600 }}
           stroke="#94a3b8"
         />

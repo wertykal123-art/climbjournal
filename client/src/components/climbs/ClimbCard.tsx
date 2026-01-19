@@ -5,6 +5,7 @@ import ClimbTypeBadge from './ClimbTypeBadge'
 import { formatDate, formatPoints } from '@/utils/formatters'
 import { Star, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
+import { useGradingSystem } from '@/hooks/useGradingSystem'
 
 interface ClimbCardProps {
   climb: Climb
@@ -13,6 +14,7 @@ interface ClimbCardProps {
 }
 
 export default function ClimbCard({ climb, onEdit, onDelete }: ClimbCardProps) {
+  const { getGradeBadgeSystem } = useGradingSystem()
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -32,7 +34,7 @@ export default function ClimbCard({ climb, onEdit, onDelete }: ClimbCardProps) {
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             {climb.route && (
-              <GradeBadge grade={climb.route.difficultyFrench} size="lg" />
+              <GradeBadge grade={climb.route.difficultyFrench} size="lg" system={getGradeBadgeSystem(climb.route?.location)} />
             )}
             <div>
               <h3 className="font-semibold text-rock-900">{climb.route?.name}</h3>

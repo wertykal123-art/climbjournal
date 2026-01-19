@@ -27,7 +27,7 @@ export const authApi = {
     return response.data
   },
 
-  async updateProfile(data: Partial<Pick<User, 'displayName' | 'username' | 'profilePicture'>>): Promise<User> {
+  async updateProfile(data: Partial<Pick<User, 'displayName' | 'username' | 'profilePicture' | 'preferredGradingSystem'>>): Promise<User> {
     const response = await apiClient.put<User>('/users/profile', data)
     return response.data
   },

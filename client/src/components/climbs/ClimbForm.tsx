@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Climb, Route, ClimbType } from '@/types/models'
 import { CreateClimbRequest } from '@/types/api'
 import Button from '@/components/ui/Button'
@@ -7,6 +7,8 @@ import Select from '@/components/ui/Select'
 import { Star } from 'lucide-react'
 import { formatDateISO } from '@/utils/formatters'
 import { calculatePoints } from '@/utils/points'
+import { useGradingSystem } from '@/hooks/useGradingSystem'
+import { formatGradeWithSecondary } from '@/utils/grades'
 
 interface ClimbFormProps {
   climb?: Climb | null
@@ -34,6 +36,8 @@ export default function ClimbForm({ climb, routes, defaultRouteId, onSubmit, onC
   const [personalRating, setPersonalRating] = useState(0)
   const [comments, setComments] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+
+  const { getEffectiveSystem } = useGradingSystem()
 
   useEffect(() => {
     if (climb) {
@@ -73,10 +77,14 @@ export default function ClimbForm({ climb, routes, defaultRouteId, onSubmit, onC
     ? calculatePoints(selectedRoute.difficultyFrench, climbType)
     : 0
 
-  const routeOptions = routes.map((r) => ({
-    value: r.id,
-    label: `${r.name} (${r.difficultyFrench}) - ${r.location?.name || 'Unknown'}`,
-  }))
+  const routeOptions = useMemo(() => routes.map((r) => {
+    const effectiveSystem = getEffectiveSystem(r.location)
+    const gradeLabel = formatGradeWithSecondary(r.difficultyFrench, effectiveSystem)
+    return {
+      value: r.id,
+      label: `${r.name} (${gradeLabel}) - ${r.location?.name || 'Unknown'}`,
+    }
+  }), [routes, getEffectiveSystem])
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

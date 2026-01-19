@@ -4,12 +4,17 @@ export type ClimbType = 'OS' | 'FLASH' | 'RP' | 'PP' | 'TOPROPE' | 'AUTOBELAY' |
 
 export type FriendshipStatus = 'PENDING' | 'ACCEPTED'
 
+export type GradingSystem = 'FRENCH' | 'UIAA'
+
+export type UserGradingPreference = 'FRENCH' | 'UIAA' | 'LOCATION_DEFAULT'
+
 export interface User {
   id: string
   email: string
   username: string
   displayName: string
   profilePicture?: string
+  preferredGradingSystem?: UserGradingPreference
   createdAt: string
   updatedAt: string
 }
@@ -45,6 +50,7 @@ export interface Location {
   country?: string
   description?: string
   isPublic?: boolean
+  defaultGradingSystem?: GradingSystem
   createdAt: string
   updatedAt: string
   routeCount?: number

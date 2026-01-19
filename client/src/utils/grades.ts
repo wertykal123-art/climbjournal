@@ -50,8 +50,59 @@ export const FRENCH_TO_UIAA: Record<string, string> = {
   '9c': 'XII+',
 }
 
+// Reverse mapping from UIAA to French (using the first French grade that maps to each UIAA)
+export const UIAA_TO_FRENCH: Record<string, string> = {
+  'IV': '4',
+  'IV+': '4+',
+  'V-': '5a',
+  'V': '5a+',
+  'V+': '5b',
+  'VI-': '5b+',
+  'VI': '5c',
+  'VI+': '6a',
+  'VII-': '6a+',
+  'VII': '6b',
+  'VII+': '6b+',
+  'VIII-': '6c',
+  'VIII': '6c+',
+  'VIII+': '7a',
+  'IX-': '7b',
+  'IX': '7b+',
+  'IX+': '7c',
+  'X-': '8a',
+  'X': '8a+',
+  'X+': '8b',
+  'XI-': '8b+',
+  'XI': '8c',
+  'XI+': '8c+',
+  'XII-': '9a',
+  'XII': '9a+',
+  'XII+': '9b',
+}
+
 export function frenchToUIAA(french: string): string {
   return FRENCH_TO_UIAA[french] || french
+}
+
+export function uiaaToFrench(uiaa: string): string {
+  return UIAA_TO_FRENCH[uiaa] || uiaa
+}
+
+export type GradingSystemType = 'FRENCH' | 'UIAA'
+
+export function formatGradeWithSecondary(frenchGrade: string, primarySystem: GradingSystemType): string {
+  const uiaaGrade = frenchToUIAA(frenchGrade)
+  if (primarySystem === 'UIAA') {
+    return `${uiaaGrade} (${frenchGrade})`
+  }
+  return `${frenchGrade} (${uiaaGrade})`
+}
+
+export function getGradeOptionsForSystem(primarySystem: GradingSystemType): { value: string; label: string }[] {
+  return FRENCH_GRADES.map((frenchGrade) => ({
+    value: frenchGrade,
+    label: formatGradeWithSecondary(frenchGrade, primarySystem),
+  }))
 }
 
 export function getGradeIndex(grade: string): number {

@@ -37,6 +37,7 @@ export const updateProfileSchema = z.object({
     .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores')
     .optional(),
   profilePicture: z.string().max(500000).optional(), // Allow base64 or URL
+  preferredGradingSystem: z.enum(['FRENCH', 'UIAA', 'LOCATION_DEFAULT']).optional(),
 })
 
 export const changePasswordSchema = z.object({

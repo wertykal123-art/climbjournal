@@ -7,6 +7,7 @@ export const createLocationSchema = z.object({
   country: z.string().max(100).optional(),
   description: z.string().max(2000).optional(),
   isPublic: z.boolean().default(false),
+  defaultGradingSystem: z.enum(['FRENCH', 'UIAA']).default('FRENCH'),
 })
 
 export const updateLocationSchema = z.object({
@@ -16,6 +17,7 @@ export const updateLocationSchema = z.object({
   country: z.string().max(100).optional().nullable(),
   description: z.string().max(2000).optional().nullable(),
   isPublic: z.boolean().optional(),
+  defaultGradingSystem: z.enum(['FRENCH', 'UIAA']).optional(),
 })
 
 export type CreateLocationInput = z.infer<typeof createLocationSchema>

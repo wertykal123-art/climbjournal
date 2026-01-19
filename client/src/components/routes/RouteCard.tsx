@@ -5,6 +5,7 @@ import { Card, CardBody } from '@/components/ui/Card'
 import GradeBadge from './GradeBadge'
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
+import { useGradingSystem } from '@/hooks/useGradingSystem'
 
 interface RouteCardProps {
   route: Route
@@ -15,6 +16,7 @@ interface RouteCardProps {
 
 export default function RouteCard({ route, onEdit, onDelete, onLogClimb }: RouteCardProps) {
   const { user } = useAuth()
+  const { getGradeBadgeSystem } = useGradingSystem()
   const isOwner = user?.id === route.userId
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -35,7 +37,7 @@ export default function RouteCard({ route, onEdit, onDelete, onLogClimb }: Route
         <div className="flex items-start justify-between">
           <Link to={`/routes/${route.id}`} className="flex-1">
             <div className="flex items-center gap-3">
-              <GradeBadge grade={route.difficultyFrench} size="lg" />
+              <GradeBadge grade={route.difficultyFrench} size="lg" system={getGradeBadgeSystem(route.location)} />
               <div>
                 <h3 className="font-semibold text-rock-900">{route.name}</h3>
                 {route.location && (

@@ -3,12 +3,15 @@ import { Card, CardBody } from '@/components/ui/Card'
 import { formatNumber, formatPoints } from '@/utils/formatters'
 import { TrendingUp, Target, Flame, Trophy, MapPin, Route } from 'lucide-react'
 import GradeBadge from '@/components/routes/GradeBadge'
+import { useGradingSystem } from '@/hooks/useGradingSystem'
 
 interface OverviewCardsProps {
   stats: OverviewStats
 }
 
 export default function OverviewCards({ stats }: OverviewCardsProps) {
+  const { getGradeBadgeSystem } = useGradingSystem()
+
   const cards = [
     {
       label: 'Total Points',
@@ -76,7 +79,7 @@ export default function OverviewCards({ stats }: OverviewCardsProps) {
         <Card className="col-span-2 md:col-span-1">
           <CardBody className="p-4">
             <p className="text-xs text-rock-500 mb-2">Hardest Send</p>
-            <GradeBadge grade={stats.hardestGrade} size="lg" />
+            <GradeBadge grade={stats.hardestGrade} size="lg" system={getGradeBadgeSystem(null)} />
           </CardBody>
         </Card>
       )}

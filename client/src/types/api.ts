@@ -30,6 +30,7 @@ export interface CreateLocationRequest {
   country?: string
   description?: string
   isPublic?: boolean
+  defaultGradingSystem?: 'FRENCH' | 'UIAA'
 }
 
 export interface UpdateLocationRequest {
@@ -39,6 +40,7 @@ export interface UpdateLocationRequest {
   country?: string
   description?: string
   isPublic?: boolean
+  defaultGradingSystem?: 'FRENCH' | 'UIAA'
 }
 
 export interface CreateRouteRequest {

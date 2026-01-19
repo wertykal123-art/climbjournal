@@ -4,6 +4,7 @@ import Avatar from '@/components/ui/Avatar'
 import GradeBadge from '@/components/routes/GradeBadge'
 import { formatPoints, formatNumber } from '@/utils/formatters'
 import { Trophy, Medal } from 'lucide-react'
+import { useGradingSystem } from '@/hooks/useGradingSystem'
 
 interface LeaderboardTableProps {
   entries: LeaderboardEntry[]
@@ -12,6 +13,8 @@ interface LeaderboardTableProps {
 }
 
 export default function LeaderboardTable({ entries, currentUserId, title }: LeaderboardTableProps) {
+  const { getGradeBadgeSystem } = useGradingSystem()
+
   const getRankIcon = (rank: number) => {
     if (rank === 1) return <Trophy className="w-5 h-5 text-yellow-500" />
     if (rank === 2) return <Medal className="w-5 h-5 text-gray-400" />
@@ -89,7 +92,7 @@ export default function LeaderboardTable({ entries, currentUserId, title }: Lead
                   </td>
                   <td className="px-4 py-3 text-right whitespace-nowrap hidden md:table-cell">
                     {entry.hardestGrade ? (
-                      <GradeBadge grade={entry.hardestGrade} size="sm" />
+                      <GradeBadge grade={entry.hardestGrade} size="sm" system={getGradeBadgeSystem(null)} />
                     ) : (
                       <span className="text-rock-400">-</span>
                     )}

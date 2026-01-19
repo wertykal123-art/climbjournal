@@ -4,19 +4,25 @@ import { authApi } from '@/api/auth.api'
 import { exportApi, ExportData } from '@/api/export.api'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import Select from '@/components/ui/Select'
 import Avatar from '@/components/ui/Avatar'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { showToast } from '@/components/ui/Toast'
 import { formatDate } from '@/utils/formatters'
 import { Download, Upload, Trash2 } from 'lucide-react'
 import Modal from '@/components/ui/Modal'
+import { UserGradingPreference } from '@/types/models'
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth()
 
   const [displayName, setDisplayName] = useState(user?.displayName || '')
   const [username, setUsername] = useState(user?.username || '')
+  const [preferredGradingSystem, setPreferredGradingSystem] = useState<UserGradingPreference>(
+    user?.preferredGradingSystem || 'LOCATION_DEFAULT'
+  )
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isUpdatingGrading, setIsUpdatingGrading] = useState(false)
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -39,6 +45,21 @@ export default function ProfilePage() {
       showToast('error', 'Failed to update profile')
     } finally {
       setIsUpdating(false)
+    }
+  }
+
+  const handleUpdateGradingPreference = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsUpdatingGrading(true)
+
+    try {
+      const updated = await authApi.updateProfile({ preferredGradingSystem })
+      updateUser(updated)
+      showToast('success', 'Grading preference updated!')
+    } catch {
+      showToast('error', 'Failed to update grading preference')
+    } finally {
+      setIsUpdatingGrading(false)
     }
   }
 
@@ -150,6 +171,34 @@ export default function ProfilePage() {
 
             <Button type="submit" isLoading={isUpdating}>
               Save Changes
+            </Button>
+          </form>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h3 className="font-semibold text-rock-900">Grading Preferences</h3>
+        </CardHeader>
+        <CardBody>
+          <form onSubmit={handleUpdateGradingPreference} className="space-y-4">
+            <Select
+              label="Preferred Grading System"
+              value={preferredGradingSystem}
+              onChange={(e) => setPreferredGradingSystem(e.target.value as UserGradingPreference)}
+              options={[
+                { value: 'LOCATION_DEFAULT', label: 'Use location default' },
+                { value: 'FRENCH', label: 'Always French (6a, 7b, etc.)' },
+                { value: 'UIAA', label: 'Always UIAA (VI, VIII, etc.)' },
+              ]}
+            />
+            <p className="text-sm text-rock-500">
+              This setting controls how grades are displayed throughout the app.
+              When set to "Use location default", grades will be shown in the grading system
+              configured for each location.
+            </p>
+            <Button type="submit" isLoading={isUpdatingGrading}>
+              Save Preference
             </Button>
           </form>
         </CardBody>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Location, LocationType } from '@/types/models'
+import { Location, LocationType, GradingSystem } from '@/types/models'
 import { CreateLocationRequest } from '@/types/api'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -18,6 +18,7 @@ export default function LocationForm({ location, onSubmit, onCancel }: LocationF
   const [country, setCountry] = useState('')
   const [description, setDescription] = useState('')
   const [isPublic, setIsPublic] = useState(false)
+  const [defaultGradingSystem, setDefaultGradingSystem] = useState<GradingSystem>('FRENCH')
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export default function LocationForm({ location, onSubmit, onCancel }: LocationF
       setCountry(location.country || '')
       setDescription(location.description || '')
       setIsPublic(location.isPublic || false)
+      setDefaultGradingSystem(location.defaultGradingSystem || 'FRENCH')
     }
   }, [location])
 
@@ -43,6 +45,7 @@ export default function LocationForm({ location, onSubmit, onCancel }: LocationF
         country: country || undefined,
         description: description || undefined,
         isPublic,
+        defaultGradingSystem,
       })
     } finally {
       setIsLoading(false)
@@ -66,6 +69,16 @@ export default function LocationForm({ location, onSubmit, onCancel }: LocationF
         options={[
           { value: 'GYM', label: 'Gym' },
           { value: 'CRAG', label: 'Outdoor Crag' },
+        ]}
+      />
+
+      <Select
+        label="Default Grading System"
+        value={defaultGradingSystem}
+        onChange={(e) => setDefaultGradingSystem(e.target.value as GradingSystem)}
+        options={[
+          { value: 'FRENCH', label: 'French (6a, 7b, etc.)' },
+          { value: 'UIAA', label: 'UIAA (VI, VIII, etc.)' },
         ]}
       />
 

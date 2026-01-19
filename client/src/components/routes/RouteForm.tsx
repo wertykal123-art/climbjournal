@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Route, Location } from '@/types/models'
 import { CreateRouteRequest } from '@/types/api'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
-import { FRENCH_GRADES } from '@/utils/grades'
+import { getGradeOptionsForSystem } from '@/utils/grades'
+import { useGradingSystem } from '@/hooks/useGradingSystem'
 
 interface RouteFormProps {
   route?: Route | null
@@ -24,6 +25,19 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
   const [description, setDescription] = useState('')
   const [isPublic, setIsPublic] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+
+  const { getEffectiveSystem } = useGradingSystem()
+
+  const selectedLocation = useMemo(
+    () => locations.find((l) => l.id === locationId) || null,
+    [locations, locationId]
+  )
+
+  const effectiveSystem = getEffectiveSystem(selectedLocation)
+  const gradeOptions = useMemo(
+    () => getGradeOptionsForSystem(effectiveSystem),
+    [effectiveSystem]
+  )
 
   useEffect(() => {
     if (route) {
@@ -62,7 +76,6 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
     }
   }
 
-  const gradeOptions = FRENCH_GRADES.map((g) => ({ value: g, label: g }))
   const locationOptions = locations.map((l) => ({ value: l.id, label: l.name }))
 
   return (
@@ -84,7 +97,7 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
       />
 
       <Select
-        label="Grade (French)"
+        label={`Grade (${effectiveSystem === 'UIAA' ? 'UIAA' : 'French'})`}
         value={difficultyFrench}
         onChange={(e) => setDifficultyFrench(e.target.value)}
         options={gradeOptions}

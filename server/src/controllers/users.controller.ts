@@ -14,6 +14,7 @@ export async function getProfile(req: Request, res: Response, next: NextFunction
         username: true,
         displayName: true,
         profilePicture: true,
+        preferredGradingSystem: true,
         createdAt: true,
         updatedAt: true,
         _count: {
@@ -43,7 +44,7 @@ export async function getProfile(req: Request, res: Response, next: NextFunction
 
 export async function updateProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { displayName, username, profilePicture } = req.body as UpdateProfileInput
+    const { displayName, username, profilePicture, preferredGradingSystem } = req.body as UpdateProfileInput
 
     if (username) {
       const existingUser = await prisma.user.findFirst({
@@ -64,6 +65,7 @@ export async function updateProfile(req: Request, res: Response, next: NextFunct
         ...(displayName && { displayName }),
         ...(username && { username }),
         ...(profilePicture !== undefined && { profilePicture }),
+        ...(preferredGradingSystem && { preferredGradingSystem }),
       },
       select: {
         id: true,
@@ -71,6 +73,7 @@ export async function updateProfile(req: Request, res: Response, next: NextFunct
         username: true,
         displayName: true,
         profilePicture: true,
+        preferredGradingSystem: true,
         createdAt: true,
         updatedAt: true,
       },
