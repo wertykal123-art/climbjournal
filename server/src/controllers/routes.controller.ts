@@ -4,7 +4,7 @@ import { CreateRouteInput, UpdateRouteInput, RouteFilters } from '../schemas/rou
 import { NotFoundError, ForbiddenError } from '../middleware/error.middleware.js'
 import { getGradeIndex } from '../utils/grades.js'
 import { frenchToUIAA } from '../utils/grades.js'
-import { getFriendIds } from '../utils/access.js'
+import { getFriendIds, areFriends } from '../utils/access.js'
 
 const userSelect = {
   id: true,
@@ -49,7 +49,7 @@ export async function getRoutes(req: Request, res: Response, next: NextFunction)
         include: {
           user: { select: userSelect },
           location: {
-            select: { id: true, name: true, type: true },
+            select: { id: true, name: true, type: true, userId: true },
           },
           _count: {
             select: { climbs: true },
@@ -99,7 +99,7 @@ export async function getRoute(req: Request, res: Response, next: NextFunction):
       include: {
         user: { select: userSelect },
         location: {
-          select: { id: true, name: true, type: true },
+          select: { id: true, name: true, type: true, userId: true },
         },
         _count: {
           select: { climbs: true },
@@ -176,6 +176,7 @@ export async function getLocationRoutes(req: Request, res: Response, next: NextF
 export async function createRoute(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const data = req.body as CreateRouteInput
+    const userId = req.user!.userId
 
     const location = await prisma.location.findUnique({
       where: { id: data.locationId },
@@ -185,7 +186,11 @@ export async function createRoute(req: Request, res: Response, next: NextFunctio
       throw new NotFoundError('Location')
     }
 
-    if (location.userId !== req.user!.userId) {
+    // Allow creating routes on own locations or friend's locations
+    const isOwner = location.userId === userId
+    const isFriend = !isOwner && await areFriends(userId, location.userId)
+
+    if (!isOwner && !isFriend) {
       throw new ForbiddenError('Not authorized to add routes to this location')
     }
 
@@ -193,11 +198,11 @@ export async function createRoute(req: Request, res: Response, next: NextFunctio
       data: {
         ...data,
         difficultyUIAA: data.difficultyUIAA || frenchToUIAA(data.difficultyFrench),
-        userId: req.user!.userId,
+        userId: userId,
       },
       include: {
         location: {
-          select: { id: true, name: true, type: true },
+          select: { id: true, name: true, type: true, userId: true },
         },
       },
     })
@@ -212,16 +217,24 @@ export async function updateRoute(req: Request, res: Response, next: NextFunctio
   try {
     const id = req.params.id as string
     const data = req.body as UpdateRouteInput
+    const userId = req.user!.userId
 
     const existing = await prisma.route.findUnique({
       where: { id },
+      include: {
+        location: { select: { userId: true } },
+      },
     })
 
     if (!existing) {
       throw new NotFoundError('Route')
     }
 
-    if (existing.userId !== req.user!.userId) {
+    // Allow editing if user owns the route OR is a friend of the location owner
+    const isRouteOwner = existing.userId === userId
+    const isLocationOwnerFriend = !isRouteOwner && await areFriends(userId, existing.location.userId)
+
+    if (!isRouteOwner && !isLocationOwnerFriend) {
       throw new ForbiddenError('Not authorized to update this route')
     }
 
@@ -235,7 +248,7 @@ export async function updateRoute(req: Request, res: Response, next: NextFunctio
       data: updateData,
       include: {
         location: {
-          select: { id: true, name: true, type: true },
+          select: { id: true, name: true, type: true, userId: true },
         },
         _count: {
           select: { climbs: true },
@@ -256,16 +269,24 @@ export async function updateRoute(req: Request, res: Response, next: NextFunctio
 export async function deleteRoute(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const id = req.params.id as string
+    const userId = req.user!.userId
 
     const existing = await prisma.route.findUnique({
       where: { id },
+      include: {
+        location: { select: { userId: true } },
+      },
     })
 
     if (!existing) {
       throw new NotFoundError('Route')
     }
 
-    if (existing.userId !== req.user!.userId) {
+    // Allow deleting if user owns the route OR owns the location
+    const isRouteOwner = existing.userId === userId
+    const isLocationOwner = existing.location.userId === userId
+
+    if (!isRouteOwner && !isLocationOwner) {
       throw new ForbiddenError('Not authorized to delete this route')
     }
 

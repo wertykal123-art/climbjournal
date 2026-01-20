@@ -14,6 +14,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { showToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
+import { useFriends } from '@/hooks/useFriends'
 import {
   ArrowLeft,
   Building2,
@@ -34,6 +35,7 @@ export default function LocationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { isFriend } = useFriends()
 
   const [location, setLocation] = useState<Location | null>(null)
   const [routes, setRoutes] = useState<Route[]>([])
@@ -45,6 +47,8 @@ export default function LocationDetailPage() {
   const [showDeleteLocation, setShowDeleteLocation] = useState(false)
 
   const isOwner = user?.id === location?.userId
+  const isFriendOfOwner = isFriend(location?.userId)
+  const canEdit = isOwner || isFriendOfOwner
 
   useEffect(() => {
     if (id) {
@@ -348,10 +352,12 @@ export default function LocationDetailPage() {
             <h2 className="text-lg font-semibold text-rock-900">
               Routes ({routes.length})
             </h2>
-            <Button onClick={() => setShowRouteModal(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Route
-            </Button>
+            {canEdit && (
+              <Button onClick={() => setShowRouteModal(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Route
+              </Button>
+            )}
           </div>
 
           {routes.length > 0 ? (
@@ -360,9 +366,10 @@ export default function LocationDetailPage() {
                 <RouteCard
                   key={route.id}
                   route={{ ...route, location }}
-                  onEdit={setEditingRoute}
-                  onDelete={setDeleteRouteConfirm}
+                  onEdit={canEdit ? setEditingRoute : undefined}
+                  onDelete={canEdit ? setDeleteRouteConfirm : undefined}
                   onLogClimb={setLoggingClimb}
+                  canEdit={canEdit}
                 />
               ))}
             </div>
@@ -371,11 +378,15 @@ export default function LocationDetailPage() {
               <CardBody className="text-center py-12">
                 <RouteIcon className="w-12 h-12 text-rock-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-rock-900 mb-2">No routes yet</h3>
-                <p className="text-rock-500 mb-4">Add your first route to this location.</p>
-                <Button onClick={() => setShowRouteModal(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Route
-                </Button>
+                <p className="text-rock-500 mb-4">
+                  {canEdit ? 'Add your first route to this location.' : 'No routes have been added yet.'}
+                </p>
+                {canEdit && (
+                  <Button onClick={() => setShowRouteModal(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Route
+                  </Button>
+                )}
               </CardBody>
             </Card>
           )}

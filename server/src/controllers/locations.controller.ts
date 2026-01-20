@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import { prisma } from '../models/prisma.js'
 import { CreateLocationInput, UpdateLocationInput } from '../schemas/location.schema.js'
 import { NotFoundError, ForbiddenError } from '../middleware/error.middleware.js'
-import { getFriendIds } from '../utils/access.js'
+import { getFriendIds, areFriends } from '../utils/access.js'
 
 const userSelect = {
   id: true,
@@ -103,6 +103,7 @@ export async function updateLocation(req: Request, res: Response, next: NextFunc
   try {
     const id = req.params.id as string
     const data = req.body as UpdateLocationInput
+    const userId = req.user!.userId
 
     const existing = await prisma.location.findUnique({
       where: { id },
@@ -112,7 +113,11 @@ export async function updateLocation(req: Request, res: Response, next: NextFunc
       throw new NotFoundError('Location')
     }
 
-    if (existing.userId !== req.user!.userId) {
+    // Allow editing if user owns the location OR is a friend of the owner
+    const isOwner = existing.userId === userId
+    const isFriend = !isOwner && await areFriends(userId, existing.userId)
+
+    if (!isOwner && !isFriend) {
       throw new ForbiddenError('Not authorized to update this location')
     }
 

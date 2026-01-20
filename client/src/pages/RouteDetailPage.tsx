@@ -14,6 +14,7 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import { showToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useGradingSystem } from '@/hooks/useGradingSystem'
+import { useFriends } from '@/hooks/useFriends'
 import {
   ArrowLeft,
   MapPin,
@@ -63,6 +64,7 @@ export default function RouteDetailPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { getGradeBadgeSystem } = useGradingSystem()
+  const { isFriend } = useFriends()
 
   const [route, setRoute] = useState<Route | null>(null)
   const [climbs, setClimbs] = useState<Climb[]>([])
@@ -73,6 +75,9 @@ export default function RouteDetailPage() {
   const [showDeleteRoute, setShowDeleteRoute] = useState(false)
 
   const isOwner = user?.id === route?.userId
+  // Friends of the location owner can also edit routes
+  const isFriendOfLocationOwner = isFriend(route?.location?.userId)
+  const canEdit = isOwner || isFriendOfLocationOwner
 
   useEffect(() => {
     if (id) {
@@ -223,7 +228,7 @@ export default function RouteDetailPage() {
             <CheckCircle className="w-4 h-4 mr-2" />
             Log Climb
           </Button>
-          {isOwner && (
+          {canEdit && (
             <>
               <Button variant="secondary" onClick={() => navigate(`/routes?edit=${route.id}`)}>
                 <Pencil className="w-4 h-4 mr-2" />

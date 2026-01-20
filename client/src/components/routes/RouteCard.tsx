@@ -26,12 +26,15 @@ interface RouteCardProps {
   onEdit?: (route: Route) => void
   onDelete?: (route: Route) => void
   onLogClimb?: (route: Route) => void
+  canEdit?: boolean // Override for friend-based permissions
 }
 
-export default function RouteCard({ route, onEdit, onDelete, onLogClimb }: RouteCardProps) {
+export default function RouteCard({ route, onEdit, onDelete, onLogClimb, canEdit }: RouteCardProps) {
   const { user } = useAuth()
   const { getGradeBadgeSystem } = useGradingSystem()
   const isOwner = user?.id === route.userId
+  // Use canEdit prop if provided, otherwise fall back to isOwner
+  const hasEditPermission = canEdit !== undefined ? canEdit : isOwner
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -91,7 +94,7 @@ export default function RouteCard({ route, onEdit, onDelete, onLogClimb }: Route
                     Log Climb
                   </button>
                 )}
-                {isOwner && onEdit && (
+                {hasEditPermission && onEdit && (
                   <button
                     onClick={() => {
                       setShowMenu(false)
@@ -103,7 +106,7 @@ export default function RouteCard({ route, onEdit, onDelete, onLogClimb }: Route
                     Edit
                   </button>
                 )}
-                {isOwner && onDelete && (
+                {hasEditPermission && onDelete && (
                   <button
                     onClick={() => {
                       setShowMenu(false)
