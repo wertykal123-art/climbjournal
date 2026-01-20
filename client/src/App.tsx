@@ -7,7 +7,9 @@ import LoginPage from '@/pages/LoginPage'
 import RegisterPage from '@/pages/RegisterPage'
 import DashboardPage from '@/pages/DashboardPage'
 import LocationsPage from '@/pages/LocationsPage'
+import LocationDetailPage from '@/pages/LocationDetailPage'
 import RoutesPage from '@/pages/RoutesPage'
+import RouteDetailPage from '@/pages/RouteDetailPage'
 import JournalPage from '@/pages/JournalPage'
 import StatsPage from '@/pages/StatsPage'
 import LeaderboardPage from '@/pages/LeaderboardPage'
@@ -54,7 +56,9 @@ export default function App() {
       >
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/locations" element={<LocationsPage />} />
+        <Route path="/locations/:id" element={<LocationDetailPage />} />
         <Route path="/routes" element={<RoutesPage />} />
+        <Route path="/routes/:id" element={<RouteDetailPage />} />
         <Route path="/journal" element={<JournalPage />} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
