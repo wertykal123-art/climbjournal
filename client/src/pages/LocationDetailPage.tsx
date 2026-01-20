@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { locationsApi } from '@/api/locations.api'
 import { routesApi } from '@/api/routes.api'
@@ -28,6 +28,7 @@ import {
   TrendingUp,
   Flag,
   BarChart3,
+  MoreVertical,
 } from 'lucide-react'
 import { formatDate } from '@/utils/formatters'
 
@@ -45,6 +46,8 @@ export default function LocationDetailPage() {
   const [deleteRouteConfirm, setDeleteRouteConfirm] = useState<Route | null>(null)
   const [loggingClimb, setLoggingClimb] = useState<Route | null>(null)
   const [showDeleteLocation, setShowDeleteLocation] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const isOwner = user?.id === location?.userId
   const isFriendOfOwner = isFriend(location?.userId)
@@ -55,6 +58,16 @@ export default function LocationDetailPage() {
       loadData()
     }
   }, [id])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const loadData = async () => {
     setIsLoading(true)
@@ -196,10 +209,28 @@ export default function LocationDetailPage() {
         </div>
 
         {isOwner && (
-          <Button variant="danger" onClick={() => setShowDeleteLocation(true)}>
-            <Trash2 className="w-4 h-4 mr-2" />
-            Delete
-          </Button>
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-2 rounded-lg text-rock-500 hover:text-rock-700 hover:bg-rock-100"
+            >
+              <MoreVertical className="w-6 h-6" />
+            </button>
+            {showMenu && (
+              <div className="absolute right-0 mt-1 w-36 bg-white rounded-lg shadow-lg border border-rock-200 py-1 z-10">
+                <button
+                  onClick={() => {
+                    setShowMenu(false)
+                    setShowDeleteLocation(true)
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-fall hover:bg-rock-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
