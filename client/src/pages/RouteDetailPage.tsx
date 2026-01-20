@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { routesApi } from '@/api/routes.api'
 import { climbsApi } from '@/api/climbs.api'
@@ -32,6 +32,7 @@ import {
   Clock,
   Star,
   CheckCircle,
+  MoreVertical,
 } from 'lucide-react'
 import { formatDate, formatPoints } from '@/utils/formatters'
 
@@ -73,6 +74,8 @@ export default function RouteDetailPage() {
   const [editingClimb, setEditingClimb] = useState<Climb | null>(null)
   const [deleteClimbConfirm, setDeleteClimbConfirm] = useState<Climb | null>(null)
   const [showDeleteRoute, setShowDeleteRoute] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const isOwner = user?.id === route?.userId
   // Friends of the location owner can also edit routes
@@ -84,6 +87,16 @@ export default function RouteDetailPage() {
       loadData()
     }
   }, [id])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const loadData = async () => {
     setIsLoading(true)
@@ -223,22 +236,50 @@ export default function RouteDetailPage() {
           </div>
         </div>
 
-        <div className="flex gap-2">
-          <Button onClick={() => setShowClimbModal(true)}>
-            <CheckCircle className="w-4 h-4 mr-2" />
-            Log Climb
-          </Button>
-          {canEdit && (
-            <>
-              <Button variant="secondary" onClick={() => navigate(`/routes?edit=${route.id}`)}>
-                <Pencil className="w-4 h-4 mr-2" />
-                Edit
-              </Button>
-              <Button variant="danger" onClick={() => setShowDeleteRoute(true)}>
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete
-              </Button>
-            </>
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="p-2 rounded-lg text-rock-500 hover:text-rock-700 hover:bg-rock-100"
+          >
+            <MoreVertical className="w-6 h-6" />
+          </button>
+          {showMenu && (
+            <div className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-rock-200 py-1 z-10">
+              <button
+                onClick={() => {
+                  setShowMenu(false)
+                  setShowClimbModal(true)
+                }}
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-send hover:bg-rock-50"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Log Climb
+              </button>
+              {canEdit && (
+                <>
+                  <button
+                    onClick={() => {
+                      setShowMenu(false)
+                      navigate(`/routes?edit=${route.id}`)
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-rock-700 hover:bg-rock-50"
+                  >
+                    <Pencil className="w-4 h-4" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowMenu(false)
+                      setShowDeleteRoute(true)
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-fall hover:bg-rock-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
           )}
         </div>
       </div>
