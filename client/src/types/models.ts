@@ -107,6 +107,10 @@ export interface Climb {
   route?: Route
 }
 
+export interface FriendClimb extends Climb {
+  user?: UserSummary
+}
+
 export interface OverviewStats {
   totalClimbs: number
   totalPoints: number

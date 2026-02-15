@@ -1,4 +1,5 @@
-import { UserMinus } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { UserMinus, BookOpen } from 'lucide-react'
 import { Friend } from '@/types/models'
 import { Card, CardBody } from '@/components/ui/Card'
 import Avatar from '@/components/ui/Avatar'
@@ -25,14 +26,25 @@ export default function FriendCard({ friend, onRemove }: FriendCardProps) {
               <p className="text-sm text-rock-500">@{friend.username}</p>
             </div>
           </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => onRemove(friend.friendshipId)}
-            title="Remove friend"
-          >
-            <UserMinus className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Link to={`/friends/climbs/${friend.id}`}>
+              <Button
+                variant="secondary"
+                size="sm"
+                title="View climbs"
+              >
+                <BookOpen className="w-4 h-4" />
+              </Button>
+            </Link>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onRemove(friend.friendshipId)}
+              title="Remove friend"
+            >
+              <UserMinus className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </CardBody>
     </Card>

@@ -2,6 +2,7 @@ import { Router } from 'express'
 import {
   getClimbs,
   getClimb,
+  getFriendClimbs,
   createClimb,
   updateClimb,
   deleteClimb,
@@ -15,6 +16,8 @@ const router = Router()
 router.use(authenticate)
 
 router.get('/', validateQuery(climbFiltersSchema), getClimbs)
+router.get('/friends', validateQuery(climbFiltersSchema), getFriendClimbs)
+router.get('/friends/:userId', validateQuery(climbFiltersSchema), getFriendClimbs)
 router.get('/:id', getClimb)
 router.post('/', validate(createClimbSchema), createClimb)
 router.put('/:id', validate(updateClimbSchema), updateClimb)

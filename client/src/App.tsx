@@ -15,6 +15,7 @@ import StatsPage from '@/pages/StatsPage'
 import LeaderboardPage from '@/pages/LeaderboardPage'
 import ProfilePage from '@/pages/ProfilePage'
 import FriendsPage from '@/pages/FriendsPage'
+import FriendClimbsPage from '@/pages/FriendClimbsPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
@@ -63,6 +64,8 @@ export default function App() {
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/friends" element={<FriendsPage />} />
+        <Route path="/friends/activity" element={<FriendClimbsPage />} />
+        <Route path="/friends/climbs/:userId" element={<FriendClimbsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
 

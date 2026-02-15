@@ -1,5 +1,5 @@
 import apiClient from './client'
-import { Climb } from '@/types/models'
+import { Climb, FriendClimb } from '@/types/models'
 import { CreateClimbRequest, UpdateClimbRequest, ClimbFilters, PaginatedResponse } from '@/types/api'
 
 export const climbsApi = {
@@ -39,5 +39,18 @@ export const climbsApi = {
 
   async delete(id: string): Promise<void> {
     await apiClient.delete(`/climbs/${id}`)
+  },
+
+  async getFriendClimbs(filters?: ClimbFilters & { userId?: string }): Promise<PaginatedResponse<FriendClimb>> {
+    const params = new URLSearchParams()
+    if (filters?.climbType) params.append('climbType', filters.climbType)
+    if (filters?.from) params.append('from', filters.from)
+    if (filters?.to) params.append('to', filters.to)
+    if (filters?.page) params.append('page', filters.page.toString())
+    if (filters?.limit) params.append('limit', filters.limit.toString())
+
+    const path = filters?.userId ? `/climbs/friends/${filters.userId}` : '/climbs/friends'
+    const response = await apiClient.get<PaginatedResponse<FriendClimb>>(`${path}?${params}`)
+    return response.data
   },
 }

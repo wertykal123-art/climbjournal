@@ -117,8 +117,16 @@ export async function getRouteClimbs(req: Request, res: Response, next: NextFunc
       }
     }
 
+    const friendIds = await getFriendIds(userId)
+    const visibleUserIds = [userId, ...friendIds]
+
     const climbs = await prisma.climb.findMany({
-      where: { routeId, userId },
+      where: { routeId, userId: { in: visibleUserIds } },
+      include: {
+        user: {
+          select: { id: true, username: true, displayName: true, profilePicture: true },
+        },
+      },
       orderBy: { date: 'desc' },
     })
 
@@ -218,6 +226,85 @@ export async function updateClimb(req: Request, res: Response, next: NextFunctio
     })
 
     res.json(climb)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export async function getFriendClimbs(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.user!.userId
+    const friendUserId = req.params.userId as string | undefined
+    const { climbType, from, to, page, limit } = req.query as unknown as ClimbFilters
+
+    let targetUserIds: string[]
+
+    if (friendUserId) {
+      const friendIds = await getFriendIds(userId)
+      if (!friendIds.includes(friendUserId)) {
+        throw new ForbiddenError('Not authorized to view this user\'s climbs')
+      }
+      targetUserIds = [friendUserId]
+    } else {
+      targetUserIds = await getFriendIds(userId)
+    }
+
+    if (targetUserIds.length === 0) {
+      res.json({ data: [], total: 0, page: 1, limit, totalPages: 0 })
+      return
+    }
+
+    const where: Record<string, unknown> = {
+      userId: { in: targetUserIds },
+    }
+
+    if (climbType) {
+      const types = climbType.split(',')
+      where.climbType = { in: types }
+    }
+
+    if (from || to) {
+      where.date = {}
+      if (from) {
+        (where.date as Record<string, Date>).gte = new Date(from)
+      }
+      if (to) {
+        (where.date as Record<string, Date>).lte = new Date(to)
+      }
+    }
+
+    const pageNum = Number(page) || 1
+    const limitNum = Number(limit) || 20
+
+    const [climbs, total] = await Promise.all([
+      prisma.climb.findMany({
+        where,
+        include: {
+          user: {
+            select: { id: true, username: true, displayName: true, profilePicture: true },
+          },
+          route: {
+            include: {
+              location: {
+                select: { id: true, name: true, type: true },
+              },
+            },
+          },
+        },
+        orderBy: { date: 'desc' },
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
+      }),
+      prisma.climb.count({ where }),
+    ])
+
+    res.json({
+      data: climbs,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+    })
   } catch (error) {
     next(error)
   }

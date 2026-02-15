@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { routesApi } from '@/api/routes.api'
 import { climbsApi } from '@/api/climbs.api'
-import { Route, Climb, StoneType } from '@/types/models'
+import { Route, Climb, FriendClimb, StoneType } from '@/types/models'
 import { CreateClimbRequest, UpdateClimbRequest } from '@/types/api'
 import ClimbCard from '@/components/climbs/ClimbCard'
+import ClimbTypeBadge from '@/components/climbs/ClimbTypeBadge'
 import ClimbForm from '@/components/climbs/ClimbForm'
 import GradeBadge from '@/components/routes/GradeBadge'
 import Modal from '@/components/ui/Modal'
@@ -33,6 +34,7 @@ import {
   Star,
   CheckCircle,
   MoreVertical,
+  Users,
 } from 'lucide-react'
 import { formatDate, formatPoints } from '@/utils/formatters'
 
@@ -68,7 +70,7 @@ export default function RouteDetailPage() {
   const { isFriend } = useFriends()
 
   const [route, setRoute] = useState<Route | null>(null)
-  const [climbs, setClimbs] = useState<Climb[]>([])
+  const [climbs, setClimbs] = useState<FriendClimb[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showClimbModal, setShowClimbModal] = useState(false)
   const [editingClimb, setEditingClimb] = useState<Climb | null>(null)
@@ -168,23 +170,27 @@ export default function RouteDetailPage() {
     return null
   }
 
-  // Calculate stats
-  const totalClimbs = climbs.length
-  const totalPoints = climbs.reduce((acc, c) => acc + c.points, 0)
-  const successfulClimbs = climbs.filter((c) => c.climbType !== 'TRY')
+  // Separate own climbs and friend climbs
+  const myClimbs = climbs.filter((c) => c.userId === user?.id)
+  const friendClimbsList = climbs.filter((c) => c.userId !== user?.id)
+
+  // Calculate stats (based on own climbs only)
+  const totalClimbs = myClimbs.length
+  const totalPoints = myClimbs.reduce((acc, c) => acc + c.points, 0)
+  const successfulClimbs = myClimbs.filter((c) => c.climbType !== 'TRY')
   const bestSend = successfulClimbs.length > 0
     ? successfulClimbs.reduce((best, c) => (c.points > best.points ? c : best))
     : null
-  const firstClimb = climbs.length > 0
-    ? climbs.reduce((first, c) => (new Date(c.date) < new Date(first.date) ? c : first))
+  const firstClimb = myClimbs.length > 0
+    ? myClimbs.reduce((first, c) => (new Date(c.date) < new Date(first.date) ? c : first))
     : null
-  const avgRating = climbs.filter((c) => c.personalRating).length > 0
-    ? climbs.filter((c) => c.personalRating).reduce((acc, c) => acc + (c.personalRating || 0), 0) /
-      climbs.filter((c) => c.personalRating).length
+  const avgRating = myClimbs.filter((c) => c.personalRating).length > 0
+    ? myClimbs.filter((c) => c.personalRating).reduce((acc, c) => acc + (c.personalRating || 0), 0) /
+      myClimbs.filter((c) => c.personalRating).length
     : null
 
-  // Climb type distribution
-  const climbTypeDistribution = climbs.reduce((acc, c) => {
+  // Climb type distribution (own climbs)
+  const climbTypeDistribution = myClimbs.reduce((acc, c) => {
     acc[c.climbType] = (acc[c.climbType] || 0) + 1
     return acc
   }, {} as Record<string, number>)
@@ -440,10 +446,10 @@ export default function RouteDetailPage() {
         </Card>
 
         {/* Right - Climbs */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-rock-900">
-              Climb History ({climbs.length})
+              My Climbs ({myClimbs.length})
             </h2>
             <Button onClick={() => setShowClimbModal(true)}>
               <Plus className="w-4 h-4 mr-2" />
@@ -451,9 +457,9 @@ export default function RouteDetailPage() {
             </Button>
           </div>
 
-          {climbs.length > 0 ? (
+          {myClimbs.length > 0 ? (
             <div className="space-y-4">
-              {climbs
+              {myClimbs
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                 .map((climb) => (
                   <ClimbCard
@@ -476,6 +482,83 @@ export default function RouteDetailPage() {
                 </Button>
               </CardBody>
             </Card>
+          )}
+
+          {friendClimbsList.length > 0 && (
+            <>
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-rock-500" />
+                <h2 className="text-lg font-semibold text-rock-900">
+                  Friend Climbs ({friendClimbsList.length})
+                </h2>
+              </div>
+              <div className="space-y-4">
+                {friendClimbsList
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((climb) => (
+                    <Card key={climb.id} className="hover:shadow-md transition-shadow">
+                      <CardBody>
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <GradeBadge
+                              grade={route.difficultyFrench}
+                              size="lg"
+                              system={getGradeBadgeSystem(route.location)}
+                            />
+                            <div>
+                              <h3 className="font-semibold text-rock-900">{route.name}</h3>
+                              <p className="text-sm text-rock-500">
+                                {formatDate(climb.date)}
+                              </p>
+                              {climb.user && (
+                                <Link
+                                  to={`/friends/climbs/${climb.user.id}`}
+                                  className="text-xs text-carabiner hover:underline"
+                                >
+                                  {climb.user.displayName}
+                                </Link>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-lg text-send">
+                              +{formatPoints(climb.points)}
+                            </div>
+                            <div className="text-xs text-rock-500">points</div>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex items-center gap-3 flex-wrap">
+                          <ClimbTypeBadge type={climb.climbType} />
+                          {climb.personalRating && (
+                            <div className="flex items-center gap-0.5">
+                              {[...Array(5)].map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-4 h-4 ${
+                                    i < climb.personalRating!
+                                      ? 'text-yellow-500 fill-yellow-500'
+                                      : 'text-rock-300'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          {climb.attemptCount > 1 && (
+                            <span className="text-sm text-rock-500">
+                              {climb.attemptCount} attempts
+                            </span>
+                          )}
+                        </div>
+                        {climb.comments && (
+                          <p className="mt-3 text-sm text-rock-600 italic">
+                            "{climb.comments}"
+                          </p>
+                        )}
+                      </CardBody>
+                    </Card>
+                  ))}
+              </div>
+            </>
           )}
         </div>
       </div>

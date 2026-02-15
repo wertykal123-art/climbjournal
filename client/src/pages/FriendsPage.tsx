@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Users, UserPlus, Inbox, Send } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Users, UserPlus, Inbox, Send, Activity } from 'lucide-react'
 import { useFriends, useFriendRequests, useUserSearch } from '@/hooks/useFriendships'
 import FriendCard from '@/components/friends/FriendCard'
 import FriendRequestCard from '@/components/friends/FriendRequestCard'
@@ -101,10 +102,18 @@ export default function FriendsPage() {
           <h1 className="text-2xl font-bold text-rock-900">Friends</h1>
           <p className="text-rock-600">Manage your climbing buddies</p>
         </div>
-        <Button onClick={() => setShowSearchModal(true)}>
-          <UserPlus className="w-4 h-4 mr-2" />
-          Add Friend
-        </Button>
+        <div className="flex gap-2">
+          <Link to="/friends/activity">
+            <Button variant="secondary">
+              <Activity className="w-4 h-4 mr-2" />
+              Activity
+            </Button>
+          </Link>
+          <Button onClick={() => setShowSearchModal(true)}>
+            <UserPlus className="w-4 h-4 mr-2" />
+            Add Friend
+          </Button>
+        </div>
       </div>
 
       <div className="border-b border-rock-200">
