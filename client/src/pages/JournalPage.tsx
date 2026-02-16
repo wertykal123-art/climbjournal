@@ -175,7 +175,7 @@ export default function JournalPage() {
         size="lg"
       >
         <ClimbForm
-          routes={routes}
+          routes={routes.filter((r) => r.isActive !== false)}
           onSubmit={handleCreateClimb}
           onCancel={() => setShowModal(false)}
         />
@@ -189,7 +189,7 @@ export default function JournalPage() {
       >
         <ClimbForm
           climb={editingClimb}
-          routes={routes}
+          routes={routes.filter((r) => r.isActive !== false)}
           onSubmit={handleUpdateClimb}
           onCancel={() => setEditingClimb(null)}
         />

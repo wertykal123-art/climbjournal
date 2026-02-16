@@ -15,7 +15,7 @@ const userSelect = {
 
 export async function getRoutes(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { locationId, minGrade, maxGrade, search, page, limit } = req.query as unknown as RouteFilters
+    const { locationId, minGrade, maxGrade, search, includeReset, page, limit } = req.query as unknown as RouteFilters
     const userId = req.user!.userId
     const friendIds = await getFriendIds(userId)
 
@@ -25,6 +25,10 @@ export async function getRoutes(req: Request, res: Response, next: NextFunction)
         { isPublic: true },
         { userId: { in: friendIds } },
       ],
+    }
+
+    if (!includeReset) {
+      where.isActive = true
     }
 
     if (locationId) {

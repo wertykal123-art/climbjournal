@@ -46,6 +46,7 @@ export const updateRouteSchema = z.object({
   color: z.string().regex(hexColorRegex, 'Invalid hex color').optional().nullable(),
   stoneType: z.enum(STONE_TYPES).optional().nullable(),
   isPublic: z.boolean().optional(),
+  isActive: z.boolean().optional(),
 })
 
 export const routeFiltersSchema = z.object({
@@ -53,6 +54,7 @@ export const routeFiltersSchema = z.object({
   minGrade: z.string().optional(),
   maxGrade: z.string().optional(),
   search: z.string().optional(),
+  includeReset: z.coerce.boolean().optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(50),
 })

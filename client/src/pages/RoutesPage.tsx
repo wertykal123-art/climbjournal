@@ -13,12 +13,13 @@ import { showToast } from '@/components/ui/Toast'
 import { Route } from '@/types/models'
 import { Plus, Route as RouteIcon, Search } from 'lucide-react'
 import { climbsApi } from '@/api/climbs.api'
+import { routesApi } from '@/api/routes.api'
 import { CreateClimbRequest } from '@/types/api'
 
 export default function RoutesPage() {
   const [filters, setFilters] = useState({ locationId: '', search: '' })
   const { routes, isLoading, createRoute, updateRoute, deleteRoute, refetch } = useRoutes(
-    filters.locationId || filters.search ? filters : undefined
+    filters.locationId || filters.search ? { ...filters, includeReset: true } : { includeReset: true }
   )
   const { locations } = useLocations()
 
@@ -61,6 +62,16 @@ export default function RoutesPage() {
       setDeleteConfirm(null)
     } catch {
       showToast('error', 'Failed to delete route')
+    }
+  }
+
+  const handleResetRoute = async (route: Route) => {
+    try {
+      await routesApi.update(route.id, { isActive: false })
+      showToast('success', 'Route marked as reset')
+      refetch()
+    } catch {
+      showToast('error', 'Failed to mark route as reset')
     }
   }
 
@@ -119,6 +130,7 @@ export default function RoutesPage() {
               onEdit={setEditingRoute}
               onDelete={setDeleteConfirm}
               onLogClimb={setLoggingClimb}
+              onReset={handleResetRoute}
             />
           ))}
         </div>

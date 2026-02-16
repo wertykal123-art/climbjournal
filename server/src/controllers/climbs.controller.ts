@@ -149,6 +149,10 @@ export async function createClimb(req: Request, res: Response, next: NextFunctio
       throw new NotFoundError('Route')
     }
 
+    if (!route.isActive) {
+      throw new ForbiddenError('Cannot log climbs on a reset route')
+    }
+
     const isOwner = route.userId === userId
     if (!isOwner && !route.isPublic) {
       const friendIds = await getFriendIds(userId)

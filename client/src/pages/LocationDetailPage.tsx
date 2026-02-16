@@ -121,6 +121,16 @@ export default function LocationDetailPage() {
     }
   }
 
+  const handleResetRoute = async (route: Route) => {
+    try {
+      const updated = await routesApi.update(route.id, { isActive: false })
+      setRoutes(routes.map((r) => (r.id === route.id ? { ...r, ...updated } : r)))
+      showToast('success', 'Route marked as reset')
+    } catch {
+      showToast('error', 'Failed to mark route as reset')
+    }
+  }
+
   const handleLogClimb = async (data: CreateClimbRequest) => {
     try {
       await climbsApi.create(data)
@@ -400,6 +410,7 @@ export default function LocationDetailPage() {
                   onEdit={canEdit ? setEditingRoute : undefined}
                   onDelete={canEdit ? setDeleteRouteConfirm : undefined}
                   onLogClimb={setLoggingClimb}
+                  onReset={canEdit ? handleResetRoute : undefined}
                   canEdit={canEdit}
                 />
               ))}

@@ -85,6 +85,7 @@ export interface Route {
   color?: string
   stoneType?: StoneType
   isPublic?: boolean
+  isActive?: boolean
   createdAt: string
   updatedAt: string
   location?: Location

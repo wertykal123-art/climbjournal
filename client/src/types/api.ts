@@ -70,6 +70,7 @@ export interface UpdateRouteRequest {
   color?: string
   stoneType?: string
   isPublic?: boolean
+  isActive?: boolean
 }
 
 export interface SendFriendRequestRequest {
@@ -112,6 +113,7 @@ export interface RouteFilters {
   minGrade?: string
   maxGrade?: string
   search?: string
+  includeReset?: boolean
   page?: number
   limit?: number
 }

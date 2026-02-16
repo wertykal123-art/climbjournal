@@ -113,7 +113,7 @@ export default function DashboardPage() {
         size="lg"
       >
         <ClimbForm
-          routes={routes}
+          routes={routes.filter((r) => r.isActive !== false)}
           onSubmit={handleCreateClimb}
           onCancel={() => setShowClimbModal(false)}
         />

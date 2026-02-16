@@ -35,6 +35,8 @@ import {
   CheckCircle,
   MoreVertical,
   Users,
+  Ban,
+  RotateCcw,
 } from 'lucide-react'
 import { formatDate, formatPoints } from '@/utils/formatters'
 
@@ -152,6 +154,16 @@ export default function RouteDetailPage() {
     }
   }
 
+  const handleResetRoute = async () => {
+    try {
+      const updated = await routesApi.update(id!, { isActive: false })
+      setRoute(updated)
+      showToast('success', 'Route marked as reset')
+    } catch {
+      showToast('error', 'Failed to mark route as reset')
+    }
+  }
+
   const handleDeleteRoute = async () => {
     try {
       await routesApi.delete(id!)
@@ -222,6 +234,12 @@ export default function RouteDetailPage() {
                     title={`Hold color: ${route.color}`}
                   />
                 )}
+                {route.isActive === false && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 bg-rock-200 text-rock-500 text-xs rounded-full">
+                    <RotateCcw className="w-3 h-3" />
+                    Reset
+                  </span>
+                )}
                 {route.isPublic && (
                   <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-send text-xs rounded-full">
                     <Globe className="w-3 h-3" />
@@ -250,19 +268,33 @@ export default function RouteDetailPage() {
             <MoreVertical className="w-6 h-6" />
           </button>
           {showMenu && (
-            <div className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-rock-200 py-1 z-10">
-              <button
-                onClick={() => {
-                  setShowMenu(false)
-                  setShowClimbModal(true)
-                }}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-send hover:bg-rock-50"
-              >
-                <CheckCircle className="w-4 h-4" />
-                Log Climb
-              </button>
+            <div className="absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-lg border border-rock-200 py-1 z-10">
+              {route.isActive !== false && (
+                <button
+                  onClick={() => {
+                    setShowMenu(false)
+                    setShowClimbModal(true)
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-send hover:bg-rock-50"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Log Climb
+                </button>
+              )}
               {canEdit && (
                 <>
+                  {route.isActive !== false && (
+                    <button
+                      onClick={() => {
+                        setShowMenu(false)
+                        handleResetRoute()
+                      }}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-rock-700 hover:bg-rock-50"
+                    >
+                      <Ban className="w-4 h-4" />
+                      Mark as Reset
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setShowMenu(false)
@@ -451,10 +483,12 @@ export default function RouteDetailPage() {
             <h2 className="text-lg font-semibold text-rock-900">
               My Climbs ({myClimbs.length})
             </h2>
-            <Button onClick={() => setShowClimbModal(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Log Climb
-            </Button>
+            {route.isActive !== false && (
+              <Button onClick={() => setShowClimbModal(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Log Climb
+              </Button>
+            )}
           </div>
 
           {myClimbs.length > 0 ? (
@@ -475,11 +509,17 @@ export default function RouteDetailPage() {
               <CardBody className="text-center py-12">
                 <CheckCircle className="w-12 h-12 text-rock-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-rock-900 mb-2">No climbs yet</h3>
-                <p className="text-rock-500 mb-4">Log your first climb on this route!</p>
-                <Button onClick={() => setShowClimbModal(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Log Climb
-                </Button>
+                {route.isActive !== false ? (
+                  <>
+                    <p className="text-rock-500 mb-4">Log your first climb on this route!</p>
+                    <Button onClick={() => setShowClimbModal(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Log Climb
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-rock-500">This route has been reset and is no longer active.</p>
+                )}
               </CardBody>
             </Card>
           )}

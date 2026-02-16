@@ -19,7 +19,7 @@ export function useRoutes(filters?: RouteFilters) {
     } finally {
       setIsLoading(false)
     }
-  }, [filters?.locationId, filters?.minGrade, filters?.maxGrade, filters?.search, filters?.page, filters?.limit])
+  }, [filters?.locationId, filters?.minGrade, filters?.maxGrade, filters?.search, filters?.includeReset, filters?.page, filters?.limit])
 
   useEffect(() => {
     fetchRoutes()

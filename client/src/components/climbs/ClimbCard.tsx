@@ -32,7 +32,7 @@ export default function ClimbCard({ climb, onEdit, onDelete }: ClimbCardProps) {
     <Card
       className="hover:shadow-md transition-shadow"
       style={climb.route?.color ? {
-        background: `linear-gradient(135deg, ${climb.route.color}18 0%, ${climb.route.color}08 50%, transparent 100%)`,
+        background: `linear-gradient(135deg, ${climb.route.color}30 0%, ${climb.route.color}15 50%, transparent 100%)`,
       } : undefined}
     >
       <CardBody>

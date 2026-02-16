@@ -9,6 +9,7 @@ export const routesApi = {
     if (filters?.minGrade) params.append('minGrade', filters.minGrade)
     if (filters?.maxGrade) params.append('maxGrade', filters.maxGrade)
     if (filters?.search) params.append('search', filters.search)
+    if (filters?.includeReset) params.append('includeReset', 'true')
     if (filters?.page) params.append('page', filters.page.toString())
     if (filters?.limit) params.append('limit', filters.limit.toString())
 
