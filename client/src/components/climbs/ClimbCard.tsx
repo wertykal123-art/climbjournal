@@ -29,7 +29,12 @@ export default function ClimbCard({ climb, onEdit, onDelete }: ClimbCardProps) {
   }, [])
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card
+      className="hover:shadow-md transition-shadow"
+      style={climb.route?.color ? {
+        background: `linear-gradient(135deg, ${climb.route.color}18 0%, ${climb.route.color}08 50%, transparent 100%)`,
+      } : undefined}
+    >
       <CardBody>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">

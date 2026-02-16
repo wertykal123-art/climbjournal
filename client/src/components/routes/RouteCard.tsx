@@ -49,7 +49,12 @@ export default function RouteCard({ route, onEdit, onDelete, onLogClimb, canEdit
   }, [])
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card
+      className="hover:shadow-md transition-shadow"
+      style={route.color ? {
+        background: `linear-gradient(135deg, ${route.color}18 0%, ${route.color}08 50%, transparent 100%)`,
+      } : undefined}
+    >
       <CardBody>
         <div className="flex items-start justify-between">
           <Link to={`/routes/${route.id}`} className="flex-1">
