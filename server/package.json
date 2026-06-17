@@ -11,7 +11,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "recalculate-points": "tsx src/scripts/recalculatePoints.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
