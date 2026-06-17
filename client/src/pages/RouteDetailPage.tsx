@@ -494,7 +494,11 @@ export default function RouteDetailPage() {
           {myClimbs.length > 0 ? (
             <div className="space-y-4">
               {myClimbs
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .sort((a, b) => {
+                  const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime()
+                  if (dateDiff !== 0) return dateDiff
+                  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                })
                 .map((climb) => (
                   <ClimbCard
                     key={climb.id}
@@ -534,7 +538,11 @@ export default function RouteDetailPage() {
               </div>
               <div className="space-y-4">
                 {friendClimbsList
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .sort((a, b) => {
+                    const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime()
+                    if (dateDiff !== 0) return dateDiff
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                  })
                   .map((climb) => (
                     <Card key={climb.id} className="hover:shadow-md transition-shadow">
                       <CardBody>
