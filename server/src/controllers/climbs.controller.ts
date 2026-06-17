@@ -46,7 +46,7 @@ export async function getClimbs(req: Request, res: Response, next: NextFunction)
             },
           },
         },
-        orderBy: { date: 'desc' },
+        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -127,7 +127,7 @@ export async function getRouteClimbs(req: Request, res: Response, next: NextFunc
           select: { id: true, username: true, displayName: true, profilePicture: true },
         },
       },
-      orderBy: { date: 'desc' },
+      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
     })
 
     res.json(climbs)
@@ -295,7 +295,7 @@ export async function getFriendClimbs(req: Request, res: Response, next: NextFun
             },
           },
         },
-        orderBy: { date: 'desc' },
+        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         skip: (pageNum - 1) * limitNum,
         take: limitNum,
       }),

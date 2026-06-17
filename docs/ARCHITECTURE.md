@@ -244,15 +244,15 @@ cd server && npm run build && npm start
 
 ## Points System
 
-**Base Points by French Grade**: 4 (10pts) -> 9c (2075pts)
+**Base Points by French Grade**: smooth ~10% geometric progression, 4 (100pts) -> 9c (1745pts)
 
 **Climb Type Multipliers**:
 - On-Sight (OS): 2.0x
 - Flash: 1.8x
 - Redpoint (RP): 1.5x
 - Pinkpoint (PP): 1.3x
-- Toprope: 1.0x
-- Autobelay: 0.8x
+- Autobelay: 1.0x
+- Toprope: 0.8x
 - Try (attempt): 0.3x
 
 ---

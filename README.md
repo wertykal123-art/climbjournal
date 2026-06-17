@@ -142,8 +142,8 @@ VITE_API_URL=http://localhost:3000/api
   - FLASH: 1.8x points
   - RP (Redpoint): 1.5x points
   - PP (Pinkpoint): 1.3x points
-  - TOPROPE: 1.0x points
-  - AUTOBELAY: 0.8x points
+  - AUTOBELAY: 1.0x points
+  - TOPROPE: 0.8x points
   - TRY: 0.3x points
 - Personal ratings (1-5 stars)
 - Comments and notes
@@ -235,15 +235,18 @@ docker run -p 3000:3000 climbing-journal-server
 
 ## Points System
 
+Base points follow a smooth ~10% geometric progression between consecutive
+grades, so the reward grows steadily without large jumps at the top end.
+
 | Grade | Base Points |
 |-------|-------------|
-| 4     | 10          |
-| 5a    | 25          |
-| 6a    | 130         |
-| 7a    | 385         |
-| 8a    | 820         |
-| 9a    | 1435        |
-| 9c    | 2075        |
+| 4     | 100         |
+| 5a    | 120         |
+| 6a    | 215         |
+| 7a    | 380         |
+| 8a    | 675         |
+| 9a    | 1190        |
+| 9c    | 1745        |
 
 Multiply base points by climb type multiplier for final score.
 
