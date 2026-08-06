@@ -41,10 +41,12 @@ export default function JournalPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<Climb | null>(null)
 
   // If a delete or filter change shrinks the result set, don't strand the
-  // user on a page past the end.
+  // user on a page past the end. (Empty result sets report totalPages 0,
+  // hence the max(1, ...) so page 1 never "clamps" to itself in a loop.)
   useEffect(() => {
-    if (!isLoading && filters.page > totalPages) {
-      setFilters((f) => ({ ...f, page: Math.max(1, totalPages) }))
+    const lastPage = Math.max(1, totalPages)
+    if (!isLoading && filters.page > lastPage) {
+      setFilters((f) => ({ ...f, page: lastPage }))
     }
   }, [isLoading, totalPages, filters.page])
 

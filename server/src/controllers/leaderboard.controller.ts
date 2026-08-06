@@ -41,7 +41,8 @@ async function calculateLeaderboard(
     where: whereClause,
     _sum: { points: true },
     _count: true,
-    orderBy: { _sum: { points: 'desc' } },
+    // userId tiebreak keeps equal-points users stable across page boundaries
+    orderBy: [{ _sum: { points: 'desc' } }, { userId: 'asc' }],
     skip: offset,
     take: limit,
   })

@@ -164,9 +164,16 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
       throw new UnauthorizedError('User not found')
     }
 
-    // Rotate: a refresh token is single-use, so a stolen copy stops working
-    // as soon as either party uses it.
-    await prisma.refreshToken.delete({ where: { id: storedToken.id } })
+    // Rotate with a short grace window instead of deleting outright:
+    // concurrent refreshes from other tabs still succeed for 30s (no 500 on
+    // a delete race, no cross-tab logout), while a stolen copy of the old
+    // token dies moments after its legitimate use. updateMany is idempotent
+    // and never shortens an already-started grace window.
+    const graceExpiry = new Date(Date.now() + 30_000)
+    await prisma.refreshToken.updateMany({
+      where: { id: storedToken.id, expiresAt: { gt: graceExpiry } },
+      data: { expiresAt: graceExpiry },
+    })
 
     const newAccessToken = signAccessToken({ userId: user.id, email: user.email })
     await issueRefreshToken(res, user.id, user.email)

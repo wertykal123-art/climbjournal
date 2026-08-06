@@ -241,6 +241,21 @@ export async function updateRoute(req: Request, res: Response, next: NextFunctio
       throw new ForbiddenError('Not authorized to update this route')
     }
 
+    // Moving the route to another location requires access to the target
+    // location, same rule as creating a route there.
+    if (data.locationId && data.locationId !== existing.locationId) {
+      const targetLocation = await prisma.location.findUnique({
+        where: { id: data.locationId },
+      })
+      if (!targetLocation) {
+        throw new NotFoundError('Location')
+      }
+      const ownsTarget = targetLocation.userId === userId
+      if (!ownsTarget && !(await areFriends(userId, targetLocation.userId))) {
+        throw new ForbiddenError('Not authorized to move this route to that location')
+      }
+    }
+
     const updateData: Record<string, unknown> = { ...data }
     if (data.difficultyFrench && !data.difficultyUIAA) {
       updateData.difficultyUIAA = frenchToUIAA(data.difficultyFrench)

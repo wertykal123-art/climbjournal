@@ -35,6 +35,7 @@ export const createRouteSchema = z.object({
 })
 
 export const updateRouteSchema = z.object({
+  locationId: z.string().uuid().optional(),
   name: z.string().min(1).max(200).optional(),
   difficultyFrench: z.enum(FRENCH_GRADES as unknown as [string, ...string[]]).optional(),
   difficultyUIAA: z.string().max(10).optional().nullable(),
