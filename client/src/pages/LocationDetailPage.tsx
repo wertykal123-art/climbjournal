@@ -223,6 +223,7 @@ export default function LocationDetailPage() {
             <button
               onClick={() => setShowMenu(!showMenu)}
               className="p-2 rounded-lg text-rock-500 hover:text-rock-700 hover:bg-rock-100"
+              aria-label="Location actions"
             >
               <MoreVertical className="w-6 h-6" />
             </button>

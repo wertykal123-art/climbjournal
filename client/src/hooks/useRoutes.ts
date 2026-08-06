@@ -12,8 +12,20 @@ export function useRoutes(filters?: RouteFilters) {
     try {
       setIsLoading(true)
       setError(null)
-      const response = await routesApi.getAll(filters)
-      setData(response)
+      if (filters?.page || filters?.limit) {
+        setData(await routesApi.getAll(filters))
+      } else {
+        // Callers without explicit pagination expect the full collection
+        // (route pickers, the routes grid) — the server caps a single page
+        // at 100, so walk the pages instead of silently truncating.
+        const first = await routesApi.getAll({ ...filters, page: 1, limit: 100 })
+        const all = [...first.data]
+        for (let page = 2; page <= first.totalPages; page++) {
+          const next = await routesApi.getAll({ ...filters, page, limit: 100 })
+          all.push(...next.data)
+        }
+        setData({ ...first, data: all })
+      }
     } catch (err) {
       setError(err as Error)
     } finally {

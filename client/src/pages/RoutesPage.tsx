@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useRoutes } from '@/hooks/useRoutes'
 import { useLocations } from '@/hooks/useLocations'
 import RouteCard from '@/components/routes/RouteCard'
@@ -17,6 +18,7 @@ import { routesApi } from '@/api/routes.api'
 import { CreateClimbRequest } from '@/types/api'
 
 export default function RoutesPage() {
+  const [searchInput, setSearchInput] = useState('')
   const [filters, setFilters] = useState({ locationId: '', search: '' })
   const { routes, isLoading, createRoute, updateRoute, deleteRoute, refetch } = useRoutes(
     filters.locationId || filters.search ? { ...filters, includeReset: true } : { includeReset: true }
@@ -27,6 +29,28 @@ export default function RoutesPage() {
   const [editingRoute, setEditingRoute] = useState<Route | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<Route | null>(null)
   const [loggingClimb, setLoggingClimb] = useState<Route | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // Debounce typing so each keystroke doesn't trigger a fetch
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters((f) => (f.search === searchInput ? f : { ...f, search: searchInput }))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
+  // Support /routes?edit=<id> deep links (used by the route detail page)
+  useEffect(() => {
+    const editId = searchParams.get('edit')
+    if (editId && routes.length > 0) {
+      const route = routes.find((r) => r.id === editId)
+      if (route) {
+        setEditingRoute(route)
+      }
+      searchParams.delete('edit')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [routes, searchParams, setSearchParams])
 
   const locationOptions = useMemo(() => [
     { value: '', label: 'All Locations' },
@@ -86,7 +110,9 @@ export default function RoutesPage() {
     }
   }
 
-  if (isLoading) {
+  // Only blank the page on first load — replacing the whole page during a
+  // search refetch unmounts the input and drops keyboard focus.
+  if (isLoading && routes.length === 0 && !filters.search && !filters.locationId) {
     return <PageSpinner />
   }
 
@@ -107,8 +133,8 @@ export default function RoutesPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rock-400" />
           <Input
-            value={filters.search}
-            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search routes..."
             className="pl-10"
           />

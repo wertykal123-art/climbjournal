@@ -57,10 +57,14 @@ export default function ClimbCard({ climb, onEdit, onDelete }: ClimbCardProps) {
               <div className="text-xs text-rock-500">points</div>
             </div>
 
+            {(onEdit || onDelete) && (
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setShowMenu(!showMenu)}
                 className="p-1 rounded-lg text-rock-400 hover:text-rock-600 hover:bg-rock-100"
+                aria-label="Climb actions"
+                aria-expanded={showMenu}
+                aria-haspopup="menu"
               >
                 <MoreVertical className="w-5 h-5" />
               </button>
@@ -93,6 +97,7 @@ export default function ClimbCard({ climb, onEdit, onDelete }: ClimbCardProps) {
                 </div>
               )}
             </div>
+            )}
           </div>
         </div>
 

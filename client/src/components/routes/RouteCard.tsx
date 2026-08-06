@@ -83,6 +83,7 @@ export default function RouteCard({ route, onEdit, onDelete, onLogClimb, onReset
             <button
               onClick={() => setShowMenu(!showMenu)}
               className="p-1 rounded-lg text-rock-400 hover:text-rock-600 hover:bg-rock-100"
+              aria-label="Route actions"
             >
               <MoreVertical className="w-5 h-5" />
             </button>

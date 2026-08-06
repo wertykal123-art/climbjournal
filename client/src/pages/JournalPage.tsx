@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useClimbs } from '@/hooks/useClimbs'
 import { useRoutes } from '@/hooks/useRoutes'
 import ClimbCard from '@/components/climbs/ClimbCard'
@@ -33,19 +33,26 @@ export default function JournalPage() {
     limit: 20,
   })
 
-  const { climbs, page, totalPages, isLoading, createClimb, updateClimb, deleteClimb, refetch } = useClimbs(filters)
+  const { climbs, page, totalPages, isLoading, createClimb, updateClimb, deleteClimb } = useClimbs(filters)
   const { routes } = useRoutes()
 
   const [showModal, setShowModal] = useState(false)
   const [editingClimb, setEditingClimb] = useState<Climb | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<Climb | null>(null)
 
+  // If a delete or filter change shrinks the result set, don't strand the
+  // user on a page past the end.
+  useEffect(() => {
+    if (!isLoading && filters.page > totalPages) {
+      setFilters((f) => ({ ...f, page: Math.max(1, totalPages) }))
+    }
+  }, [isLoading, totalPages, filters.page])
+
   const handleCreateClimb = async (data: Parameters<typeof createClimb>[0]) => {
     try {
       await createClimb(data)
       showToast('success', 'Climb logged successfully!')
       setShowModal(false)
-      refetch()
     } catch {
       showToast('error', 'Failed to log climb')
     }

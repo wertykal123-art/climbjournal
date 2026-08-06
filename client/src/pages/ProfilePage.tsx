@@ -32,6 +32,7 @@ export default function ProfilePage() {
   const [isExporting, setIsExporting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -118,13 +119,14 @@ export default function ProfilePage() {
   }
 
   const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true)
     try {
-      await authApi.changePassword({ currentPassword: '', newPassword: '' }).catch(() => {})
-      // Would need to implement delete endpoint
-      showToast('info', 'Account deletion not yet implemented')
-      setShowDeleteModal(false)
+      await authApi.deleteAccount()
+      localStorage.removeItem('accessToken')
+      window.location.href = '/login'
     } catch {
       showToast('error', 'Failed to delete account')
+      setIsDeletingAccount(false)
     }
   }
 
@@ -311,7 +313,7 @@ export default function ProfilePage() {
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={handleDeleteAccount}>
+          <Button variant="danger" onClick={handleDeleteAccount} isLoading={isDeletingAccount}>
             Delete My Account
           </Button>
         </div>

@@ -147,10 +147,10 @@ export interface LeaderboardEntry {
   userId: string
   username: string
   displayName: string
-  profilePicture?: string
+  profilePicture: string | null
   totalPoints: number
   totalClimbs: number
-  hardestGrade?: string
+  hardestGrade: string | null
 }
 
 export interface AuthResponse {

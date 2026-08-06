@@ -10,7 +10,7 @@ interface UserSearchFormProps {
   results: UserSummary[]
   isLoading: boolean
   onSearch: (query: string) => void
-  onSendRequest: (userId: string) => void
+  onSendRequest: (userId: string) => Promise<void>
 }
 
 export default function UserSearchForm({

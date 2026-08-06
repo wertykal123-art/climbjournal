@@ -45,6 +45,9 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
           onClick={onClose}
         />
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
           className={`relative w-full ${sizes[size]} bg-white rounded-xl shadow-xl transform transition-all`}
         >
           {title && (
@@ -52,6 +55,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
               <h3 className="text-lg font-semibold text-rock-900">{title}</h3>
               <button
                 onClick={onClose}
+                aria-label="Close dialog"
                 className="p-1 rounded-lg text-rock-500 hover:text-rock-700 hover:bg-rock-100 transition-colors"
               >
                 <X className="w-5 h-5" />

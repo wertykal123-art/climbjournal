@@ -94,8 +94,9 @@ export interface UpdateClimbRequest {
   date?: string
   climbType?: 'OS' | 'FLASH' | 'RP' | 'PP' | 'TOPROPE' | 'AUTOBELAY' | 'TRY'
   attemptCount?: number
-  personalRating?: number
-  comments?: string
+  // null clears the stored value; undefined leaves it unchanged
+  personalRating?: number | null
+  comments?: string | null
 }
 
 export interface ClimbFilters {
@@ -124,7 +125,6 @@ export interface TimelineParams {
 }
 
 export interface LeaderboardParams {
-  period?: 'all' | 'monthly' | 'weekly'
   limit?: number
   offset?: number
 }

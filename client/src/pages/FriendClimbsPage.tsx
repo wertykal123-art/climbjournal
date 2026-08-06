@@ -62,16 +62,28 @@ export default function FriendClimbsPage() {
 
   useEffect(() => {
     if (userId) {
-      friendshipsApi.getFriends().then((friends) => {
-        const found = friends.find((f) => f.id === userId)
-        if (found) setFriend(found)
-      })
+      friendshipsApi
+        .getFriends()
+        .then((friends) => {
+          const found = friends.find((f) => f.id === userId)
+          if (found) setFriend(found)
+        })
+        .catch(() => {
+          // Header falls back to the generic title
+        })
     }
   }, [userId])
 
   const climbs = data?.data ?? []
   const page = data?.page ?? 1
   const totalPages = data?.totalPages ?? 1
+
+  // Don't strand the user on a page past the end when the result set shrinks
+  useEffect(() => {
+    if (!isLoading && filters.page > totalPages) {
+      setFilters((f) => ({ ...f, page: Math.max(1, totalPages) }))
+    }
+  }, [isLoading, totalPages, filters.page])
 
   if (isLoading && climbs.length === 0) {
     return <PageSpinner />

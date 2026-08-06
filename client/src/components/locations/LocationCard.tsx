@@ -50,6 +50,7 @@ export default function LocationCard({ location, onEdit, onDelete }: LocationCar
               <button
                 onClick={() => setShowMenu(!showMenu)}
                 className="p-1 rounded-lg text-rock-400 hover:text-rock-600 hover:bg-rock-100"
+                aria-label="Location actions"
               >
                 <MoreVertical className="w-5 h-5" />
               </button>
