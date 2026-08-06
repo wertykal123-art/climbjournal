@@ -4,7 +4,45 @@ import { hashPassword, verifyPassword } from '../utils/password.js'
 import { signAccessToken, signRefreshToken, verifyToken, getRefreshTokenExpiry } from '../utils/jwt.js'
 import { RegisterInput, LoginInput } from '../schemas/auth.schema.js'
 import { ConflictError, UnauthorizedError, NotFoundError } from '../middleware/error.middleware.js'
+import { config } from '../config/index.js'
 import crypto from 'crypto'
+
+const REFRESH_COOKIE = 'refreshToken'
+
+// Shared between set and clear: browsers only reliably clear a cookie when
+// the attributes match the ones it was set with.
+export const refreshCookieOptions = {
+  httpOnly: true,
+  secure: config.nodeEnv === 'production',
+  sameSite: 'strict' as const,
+}
+
+function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex')
+}
+
+async function issueRefreshToken(res: Response, userId: string, email: string): Promise<void> {
+  const refreshToken = signRefreshToken({ userId, email })
+
+  await prisma.refreshToken.create({
+    data: {
+      userId,
+      token: hashToken(refreshToken),
+      expiresAt: getRefreshTokenExpiry(),
+    },
+  })
+
+  // Opportunistically drop this user's expired tokens so the table
+  // doesn't grow forever.
+  await prisma.refreshToken.deleteMany({
+    where: { userId, expiresAt: { lt: new Date() } },
+  })
+
+  res.cookie(REFRESH_COOKIE, refreshToken, {
+    ...refreshCookieOptions,
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  })
+}
 
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -45,22 +83,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
     })
 
     const accessToken = signAccessToken({ userId: user.id, email: user.email })
-    const refreshToken = signRefreshToken({ userId: user.id, email: user.email })
-
-    await prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        token: crypto.createHash('sha256').update(refreshToken).digest('hex'),
-        expiresAt: getRefreshTokenExpiry(),
-      },
-    })
-
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    })
+    await issueRefreshToken(res, user.id, user.email)
 
     res.status(201).json({
       user,
@@ -89,22 +112,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
     }
 
     const accessToken = signAccessToken({ userId: user.id, email: user.email })
-    const refreshToken = signRefreshToken({ userId: user.id, email: user.email })
-
-    await prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        token: crypto.createHash('sha256').update(refreshToken).digest('hex'),
-        expiresAt: getRefreshTokenExpiry(),
-      },
-    })
-
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    })
+    await issueRefreshToken(res, user.id, user.email)
 
     res.json({
       user: {
@@ -134,12 +142,12 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
 
     let payload
     try {
-      payload = verifyToken(refreshToken)
+      payload = verifyToken(refreshToken, 'refresh')
     } catch {
       throw new UnauthorizedError('Invalid refresh token')
     }
 
-    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex')
+    const tokenHash = hashToken(refreshToken)
     const storedToken = await prisma.refreshToken.findUnique({
       where: { token: tokenHash },
     })
@@ -156,7 +164,12 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
       throw new UnauthorizedError('User not found')
     }
 
+    // Rotate: a refresh token is single-use, so a stolen copy stops working
+    // as soon as either party uses it.
+    await prisma.refreshToken.delete({ where: { id: storedToken.id } })
+
     const newAccessToken = signAccessToken({ userId: user.id, email: user.email })
+    await issueRefreshToken(res, user.id, user.email)
 
     res.json({ accessToken: newAccessToken })
   } catch (error) {
@@ -169,13 +182,12 @@ export async function logout(req: Request, res: Response, next: NextFunction): P
     const refreshToken = req.cookies?.refreshToken
 
     if (refreshToken) {
-      const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex')
       await prisma.refreshToken.deleteMany({
-        where: { token: tokenHash },
+        where: { token: hashToken(refreshToken) },
       })
     }
 
-    res.clearCookie('refreshToken')
+    res.clearCookie(REFRESH_COOKIE, refreshCookieOptions)
     res.json({ message: 'Logged out successfully' })
   } catch (error) {
     next(error)

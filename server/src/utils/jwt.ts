@@ -6,20 +6,32 @@ export interface TokenPayload {
   email: string
 }
 
+type TokenType = 'access' | 'refresh'
+
+interface SignedPayload extends TokenPayload {
+  type: TokenType
+}
+
 export function signAccessToken(payload: TokenPayload): string {
-  return jwt.sign(payload, config.jwt.secret, {
+  return jwt.sign({ ...payload, type: 'access' }, config.jwt.secret, {
     expiresIn: config.jwt.expiresIn,
   } as SignOptions)
 }
 
 export function signRefreshToken(payload: TokenPayload): string {
-  return jwt.sign(payload, config.jwt.secret, {
+  return jwt.sign({ ...payload, type: 'refresh' }, config.jwt.secret, {
     expiresIn: config.jwt.refreshExpiresIn,
   } as SignOptions)
 }
 
-export function verifyToken(token: string): TokenPayload {
-  return jwt.verify(token, config.jwt.secret) as TokenPayload
+// Access and refresh tokens share a secret, so the type claim is what keeps
+// a (long-lived) refresh token from being replayed as an access token.
+export function verifyToken(token: string, expectedType: TokenType = 'access'): TokenPayload {
+  const payload = jwt.verify(token, config.jwt.secret) as SignedPayload
+  if (payload.type !== expectedType) {
+    throw new jwt.JsonWebTokenError(`Expected ${expectedType} token`)
+  }
+  return { userId: payload.userId, email: payload.email }
 }
 
 export function decodeToken(token: string): TokenPayload | null {

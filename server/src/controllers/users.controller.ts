@@ -3,6 +3,8 @@ import { prisma } from '../models/prisma.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
 import { UpdateProfileInput, ChangePasswordInput } from '../schemas/auth.schema.js'
 import { ConflictError, UnauthorizedError, NotFoundError } from '../middleware/error.middleware.js'
+import { refreshCookieOptions } from './auth.controller.js'
+import crypto from 'crypto'
 
 export async function getProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -109,6 +111,18 @@ export async function changePassword(req: Request, res: Response, next: NextFunc
       data: { passwordHash: newPasswordHash },
     })
 
+    // Revoke every other session's refresh token so a stolen session can't
+    // outlive a password change. The current session's token stays valid.
+    const currentToken = req.cookies?.refreshToken
+    await prisma.refreshToken.deleteMany({
+      where: {
+        userId: req.user!.userId,
+        ...(currentToken && {
+          NOT: { token: crypto.createHash('sha256').update(currentToken).digest('hex') },
+        }),
+      },
+    })
+
     res.json({ message: 'Password changed successfully' })
   } catch (error) {
     next(error)
@@ -121,7 +135,7 @@ export async function deleteAccount(req: Request, res: Response, next: NextFunct
       where: { id: req.user!.userId },
     })
 
-    res.clearCookie('refreshToken')
+    res.clearCookie('refreshToken', refreshCookieOptions)
     res.json({ message: 'Account deleted successfully' })
   } catch (error) {
     next(error)
