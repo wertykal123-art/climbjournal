@@ -5,6 +5,26 @@ import { NotFoundError, ForbiddenError } from '../middleware/error.middleware.js
 import { calculatePoints } from '../utils/points.js'
 import { getFriendIds } from '../utils/access.js'
 
+// A date-only "to" bound means "through the end of that day": climbs carry
+// timestamps, so lte at midnight would exclude the entire end date.
+function dateFilter(from?: string, to?: string): Record<string, Date> | undefined {
+  if (!from && !to) return undefined
+  const filter: Record<string, Date> = {}
+  if (from) {
+    filter.gte = new Date(from)
+  }
+  if (to) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+      const nextDay = new Date(to)
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1)
+      filter.lt = nextDay
+    } else {
+      filter.lte = new Date(to)
+    }
+  }
+  return filter
+}
+
 export async function getClimbs(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { routeId, locationId, climbType, from, to, page, limit } = req.query as unknown as ClimbFilters
@@ -24,14 +44,9 @@ export async function getClimbs(req: Request, res: Response, next: NextFunction)
       where.climbType = { in: types }
     }
 
-    if (from || to) {
-      where.date = {}
-      if (from) {
-        (where.date as Record<string, Date>).gte = new Date(from)
-      }
-      if (to) {
-        (where.date as Record<string, Date>).lte = new Date(to)
-      }
+    const dateRange = dateFilter(from, to)
+    if (dateRange) {
+      where.date = dateRange
     }
 
     const [climbs, total] = await Promise.all([
@@ -109,15 +124,13 @@ export async function getRouteClimbs(req: Request, res: Response, next: NextFunc
       throw new NotFoundError('Route')
     }
 
+    const friendIds = await getFriendIds(userId)
+
     const isOwner = route.userId === userId
-    if (!isOwner && !route.isPublic) {
-      const friendIds = await getFriendIds(userId)
-      if (!friendIds.includes(route.userId)) {
-        throw new ForbiddenError('Not authorized to access this route')
-      }
+    if (!isOwner && !route.isPublic && !friendIds.includes(route.userId)) {
+      throw new ForbiddenError('Not authorized to access this route')
     }
 
-    const friendIds = await getFriendIds(userId)
     const visibleUserIds = [userId, ...friendIds]
 
     const climbs = await prisma.climb.findMany({
@@ -267,14 +280,9 @@ export async function getFriendClimbs(req: Request, res: Response, next: NextFun
       where.climbType = { in: types }
     }
 
-    if (from || to) {
-      where.date = {}
-      if (from) {
-        (where.date as Record<string, Date>).gte = new Date(from)
-      }
-      if (to) {
-        (where.date as Record<string, Date>).lte = new Date(to)
-      }
+    const dateRange = dateFilter(from, to)
+    if (dateRange) {
+      where.date = dateRange
     }
 
     const pageNum = Number(page) || 1

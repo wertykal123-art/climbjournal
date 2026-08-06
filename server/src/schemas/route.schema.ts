@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { FRENCH_GRADES } from '../utils/grades.js'
 
-const STONE_TYPES = [
+export const STONE_TYPES = [
   'GRANITE',
   'LIMESTONE',
   'SANDSTONE',
@@ -15,7 +15,7 @@ const STONE_TYPES = [
   'OTHER',
 ] as const
 
-const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/
+export const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/
 
 export const createRouteSchema = z.object({
   locationId: z.string().uuid('Invalid location ID'),
@@ -51,8 +51,8 @@ export const updateRouteSchema = z.object({
 
 export const routeFiltersSchema = z.object({
   locationId: z.string().uuid().optional(),
-  minGrade: z.string().optional(),
-  maxGrade: z.string().optional(),
+  minGrade: z.enum(FRENCH_GRADES as unknown as [string, ...string[]]).optional(),
+  maxGrade: z.enum(FRENCH_GRADES as unknown as [string, ...string[]]).optional(),
   search: z.string().optional(),
   includeReset: z.coerce.boolean().optional(),
   page: z.coerce.number().int().positive().default(1),

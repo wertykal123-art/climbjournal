@@ -6,7 +6,7 @@ import routesRoutes from './routes.routes.js'
 import climbsRoutes from './climbs.routes.js'
 import statsRoutes from './stats.routes.js'
 import leaderboardRoutes from './leaderboard.routes.js'
-import exportRoutes from './export.routes.js'
+import { exportRouter, importRouter } from './export.routes.js'
 import friendshipsRoutes from './friendships.routes.js'
 
 const router = Router()
@@ -18,8 +18,8 @@ router.use('/routes', routesRoutes)
 router.use('/climbs', climbsRoutes)
 router.use('/stats', statsRoutes)
 router.use('/leaderboard', leaderboardRoutes)
-router.use('/export', exportRoutes)
-router.use('/import', exportRoutes)
+router.use('/export', exportRouter)
+router.use('/import', importRouter)
 router.use('/friendships', friendshipsRoutes)
 
 export default router

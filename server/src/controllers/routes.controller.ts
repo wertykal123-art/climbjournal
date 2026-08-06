@@ -2,8 +2,8 @@ import { Request, Response, NextFunction } from 'express'
 import { prisma } from '../models/prisma.js'
 import { CreateRouteInput, UpdateRouteInput, RouteFilters } from '../schemas/route.schema.js'
 import { NotFoundError, ForbiddenError } from '../middleware/error.middleware.js'
-import { getGradeIndex } from '../utils/grades.js'
-import { frenchToUIAA } from '../utils/grades.js'
+import { getGradeIndex, frenchToUIAA, FRENCH_GRADES } from '../utils/grades.js'
+import { calculatePoints, ClimbType } from '../utils/points.js'
 import { getFriendIds, areFriends } from '../utils/access.js'
 
 const userSelect = {
@@ -47,6 +47,14 @@ export async function getRoutes(req: Request, res: Response, next: NextFunction)
       ]
     }
 
+    // Filter in the database, before pagination — filtering the returned
+    // page in JS would drop matches on other pages and break the totals.
+    if (minGrade || maxGrade) {
+      const minIdx = minGrade ? getGradeIndex(minGrade) : 0
+      const maxIdx = maxGrade ? getGradeIndex(maxGrade) : FRENCH_GRADES.length - 1
+      where.difficultyFrench = { in: FRENCH_GRADES.slice(minIdx, maxIdx + 1) }
+    }
+
     const [routes, total] = await Promise.all([
       prisma.route.findMany({
         where,
@@ -66,19 +74,8 @@ export async function getRoutes(req: Request, res: Response, next: NextFunction)
       prisma.route.count({ where }),
     ])
 
-    let filteredRoutes = routes
-    if (minGrade || maxGrade) {
-      const minIdx = minGrade ? getGradeIndex(minGrade) : -1
-      const maxIdx = maxGrade ? getGradeIndex(maxGrade) : Infinity
-
-      filteredRoutes = routes.filter((r) => {
-        const idx = getGradeIndex(r.difficultyFrench)
-        return idx >= minIdx && idx <= maxIdx
-      })
-    }
-
     res.json({
-      data: filteredRoutes.map((r) => ({
+      data: routes.map((r) => ({
         ...r,
         climbCount: (r as { _count: { climbs: number } })._count.climbs,
         _count: undefined,
@@ -234,11 +231,13 @@ export async function updateRoute(req: Request, res: Response, next: NextFunctio
       throw new NotFoundError('Route')
     }
 
-    // Allow editing if user owns the route OR is a friend of the location owner
+    // Same rule as delete: the route owner or the location owner may edit.
+    // ("Any friend of the location owner" would let unrelated users rewrite
+    // each other's routes in a shared gym.)
     const isRouteOwner = existing.userId === userId
-    const isLocationOwnerFriend = !isRouteOwner && await areFriends(userId, existing.location.userId)
+    const isLocationOwner = existing.location.userId === userId
 
-    if (!isRouteOwner && !isLocationOwnerFriend) {
+    if (!isRouteOwner && !isLocationOwner) {
       throw new ForbiddenError('Not authorized to update this route')
     }
 
@@ -259,6 +258,23 @@ export async function updateRoute(req: Request, res: Response, next: NextFunctio
         },
       },
     })
+
+    // A grade change alters the base points of every climb already logged
+    // on this route — recompute them so stats and leaderboards stay honest.
+    if (data.difficultyFrench && data.difficultyFrench !== existing.difficultyFrench) {
+      const climbs = await prisma.climb.findMany({
+        where: { routeId: id },
+        select: { id: true, climbType: true },
+      })
+      await prisma.$transaction(
+        climbs.map((climb) =>
+          prisma.climb.update({
+            where: { id: climb.id },
+            data: { points: calculatePoints(data.difficultyFrench!, climb.climbType as ClimbType) },
+          })
+        )
+      )
+    }
 
     res.json({
       ...route,
