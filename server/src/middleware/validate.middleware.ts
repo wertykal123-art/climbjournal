@@ -4,7 +4,9 @@ import { ZodSchema, ZodError } from 'zod'
 export function validate(schema: ZodSchema) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
-      schema.parse(req.body)
+      // Assign the parsed result so unknown fields are stripped — controllers
+      // spread req.body into Prisma calls and must not receive extra keys.
+      req.body = schema.parse(req.body)
       next()
     } catch (error) {
       if (error instanceof ZodError) {

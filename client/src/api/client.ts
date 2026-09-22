@@ -45,12 +45,20 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // A 401 from login/register/refresh means bad credentials or no session —
+    // refreshing won't help, and redirecting would wipe the form's error UI.
+    // (/auth/me is NOT exempt: it must go through the refresh flow so an
+    // expired access token still restores the session on reload.)
+    const NO_REFRESH_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/refresh']
+    const isAuthEndpoint = NO_REFRESH_ENDPOINTS.some((path) => originalRequest?.url?.startsWith(path))
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
         })
           .then((token) => {
+            originalRequest._retry = true
             originalRequest.headers.Authorization = `Bearer ${token}`
             return apiClient(originalRequest)
           })

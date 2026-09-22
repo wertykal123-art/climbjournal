@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express'
 import { prisma } from '../models/prisma.js'
-import { BadRequestError } from '../middleware/error.middleware.js'
+import { ImportDataInput } from '../schemas/export.schema.js'
+import { calculatePoints, ClimbType } from '../utils/points.js'
+import { frenchToUIAA } from '../utils/grades.js'
 
 export async function exportData(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -13,6 +15,7 @@ export async function exportData(req: Request, res: Response, next: NextFunction
         username: true,
         displayName: true,
         profilePicture: true,
+        preferredGradingSystem: true,
       },
     })
 
@@ -24,6 +27,8 @@ export async function exportData(req: Request, res: Response, next: NextFunction
         address: true,
         country: true,
         description: true,
+        isPublic: true,
+        defaultGradingSystem: true,
       },
     })
 
@@ -51,13 +56,7 @@ export async function exportData(req: Request, res: Response, next: NextFunction
 
     const exportData = {
       user,
-      locations: locations.map((loc) => ({
-        name: loc.name,
-        type: loc.type,
-        address: loc.address,
-        country: loc.country,
-        description: loc.description,
-      })),
+      locations,
       routes: routes.map((route) => ({
         locationName: route.location.name,
         name: route.name,
@@ -68,6 +67,10 @@ export async function exportData(req: Request, res: Response, next: NextFunction
         visualId: route.visualId,
         setter: route.setter,
         description: route.description,
+        color: route.color,
+        stoneType: route.stoneType,
+        isPublic: route.isPublic,
+        isActive: route.isActive,
       })),
       climbs: climbs.map((climb) => ({
         routeName: climb.route.name,
@@ -91,109 +94,114 @@ export async function exportData(req: Request, res: Response, next: NextFunction
 export async function importData(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.userId
-    const data = req.body
+    const data = req.body as ImportDataInput
 
-    if (!data || !data.locations || !data.routes || !data.climbs) {
-      throw new BadRequestError('Invalid import data format')
-    }
+    const imported = await prisma.$transaction(
+      async (tx) => {
+        const counts = { locations: 0, routes: 0, climbs: 0 }
 
-    const imported = {
-      locations: 0,
-      routes: 0,
-      climbs: 0,
-    }
+        // Import locations
+        const locationMap: Record<string, string> = {}
+        for (const loc of data.locations) {
+          const existing = await tx.location.findFirst({
+            where: { userId, name: loc.name },
+          })
 
-    // Import locations
-    const locationMap: Record<string, string> = {}
-    for (const loc of data.locations) {
-      const existing = await prisma.location.findFirst({
-        where: { userId, name: loc.name },
-      })
+          if (existing) {
+            locationMap[loc.name] = existing.id
+          } else {
+            const created = await tx.location.create({
+              data: {
+                userId,
+                name: loc.name,
+                type: loc.type,
+                address: loc.address,
+                country: loc.country,
+                description: loc.description,
+                isPublic: loc.isPublic,
+                defaultGradingSystem: loc.defaultGradingSystem,
+              },
+            })
+            locationMap[loc.name] = created.id
+            counts.locations++
+          }
+        }
 
-      if (existing) {
-        locationMap[loc.name] = existing.id
-      } else {
-        const created = await prisma.location.create({
-          data: {
-            userId,
-            name: loc.name,
-            type: loc.type,
-            address: loc.address,
-            country: loc.country,
-            description: loc.description,
-          },
-        })
-        locationMap[loc.name] = created.id
-        imported.locations++
-      }
-    }
+        // Import routes; remember each route's grade to recompute climb points
+        const routeMap: Record<string, { id: string; difficultyFrench: string }> = {}
+        for (const route of data.routes) {
+          const locationId = locationMap[route.locationName]
+          if (!locationId) continue
 
-    // Import routes
-    const routeMap: Record<string, string> = {}
-    for (const route of data.routes) {
-      const locationId = locationMap[route.locationName]
-      if (!locationId) continue
+          const key = `${route.locationName}:${route.name}`
+          const existing = await tx.route.findFirst({
+            where: { userId, locationId, name: route.name },
+          })
 
-      const key = `${route.locationName}:${route.name}`
-      const existing = await prisma.route.findFirst({
-        where: { userId, locationId, name: route.name },
-      })
+          if (existing) {
+            routeMap[key] = { id: existing.id, difficultyFrench: existing.difficultyFrench }
+          } else {
+            const created = await tx.route.create({
+              data: {
+                userId,
+                locationId,
+                name: route.name,
+                difficultyFrench: route.difficultyFrench,
+                difficultyUIAA: route.difficultyUIAA ?? frenchToUIAA(route.difficultyFrench),
+                heightMeters: route.heightMeters,
+                protectionCount: route.protectionCount,
+                visualId: route.visualId,
+                setter: route.setter,
+                description: route.description,
+                color: route.color,
+                stoneType: route.stoneType,
+                isPublic: route.isPublic,
+                isActive: route.isActive,
+              },
+            })
+            routeMap[key] = { id: created.id, difficultyFrench: created.difficultyFrench }
+            counts.routes++
+          }
+        }
 
-      if (existing) {
-        routeMap[key] = existing.id
-      } else {
-        const created = await prisma.route.create({
-          data: {
-            userId,
-            locationId,
-            name: route.name,
-            difficultyFrench: route.difficultyFrench,
-            difficultyUIAA: route.difficultyUIAA,
-            heightMeters: route.heightMeters,
-            protectionCount: route.protectionCount,
-            visualId: route.visualId,
-            setter: route.setter,
-            description: route.description,
-          },
-        })
-        routeMap[key] = created.id
-        imported.routes++
-      }
-    }
+        // Import climbs
+        for (const climb of data.climbs) {
+          const key = `${climb.locationName}:${climb.routeName}`
+          const route = routeMap[key]
+          if (!route) continue
 
-    // Import climbs
-    for (const climb of data.climbs) {
-      const key = `${climb.locationName}:${climb.routeName}`
-      const routeId = routeMap[key]
-      if (!routeId) continue
+          const climbDate = new Date(climb.date)
 
-      const climbDate = new Date(climb.date)
+          const existing = await tx.climb.findFirst({
+            where: {
+              userId,
+              routeId: route.id,
+              date: climbDate,
+              climbType: climb.climbType,
+            },
+          })
 
-      const existing = await prisma.climb.findFirst({
-        where: {
-          userId,
-          routeId,
-          date: climbDate,
-          climbType: climb.climbType,
-        },
-      })
+          if (!existing) {
+            await tx.climb.create({
+              data: {
+                userId,
+                routeId: route.id,
+                date: climbDate,
+                climbType: climb.climbType,
+                attemptCount: climb.attemptCount,
+                personalRating: climb.personalRating,
+                comments: climb.comments,
+                points: calculatePoints(route.difficultyFrench, climb.climbType as ClimbType),
+              },
+            })
+            counts.climbs++
+          }
+        }
 
-      if (!existing) {
-        await prisma.climb.create({
-          data: {
-            userId,
-            routeId,
-            date: climbDate,
-            climbType: climb.climbType,
-            attemptCount: climb.attemptCount || 1,
-            personalRating: climb.personalRating,
-            comments: climb.comments,
-            points: climb.points,
-          },
-        })
-        imported.climbs++
-      }
-    }
+        return counts
+      },
+      { timeout: 120_000 }
+    )
 
     res.json({
       message: 'Import completed successfully',

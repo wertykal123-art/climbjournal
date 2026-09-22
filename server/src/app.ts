@@ -9,6 +9,10 @@ import { apiLimiter } from './middleware/rateLimit.middleware.js'
 
 const app = express()
 
+// Behind a reverse proxy (Railway/Render/etc.) req.ip must come from
+// X-Forwarded-For or the rate limiter buckets every client together.
+app.set('trust proxy', 1)
+
 // Security middleware
 app.use(helmet())
 app.use(cors({

@@ -35,47 +35,46 @@ export async function getOverview(req: Request, res: Response, next: NextFunctio
       }, '' as string)
     }
 
-    // Calculate streaks
-    let currentStreak = 0
-    let bestStreak = 0
-    let tempStreak = 0
-    let lastDate: Date | null = null
-
+    // Calculate streaks: split distinct climb days (newest first) into runs
+    // of consecutive days, then take the newest run as the current streak —
+    // but only if it is still alive (anchored at today or yesterday).
     const climbDates = [...new Set(climbs.map((c) => c.date.toISOString().split('T')[0]))].sort().reverse()
 
     const today = new Date().toISOString().split('T')[0]
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
 
+    const runs: number[] = []
+    let run = 0
+    let prevDate: string | null = null
+
     for (const dateStr of climbDates) {
-      if (!lastDate) {
-        if (dateStr === today || dateStr === yesterday) {
-          tempStreak = 1
-          currentStreak = 1
-        }
-        lastDate = new Date(dateStr)
-        continue
-      }
-
-      const diff = (lastDate.getTime() - new Date(dateStr).getTime()) / 86400000
-
-      if (diff === 1) {
-        tempStreak++
-        if (currentStreak > 0) {
-          currentStreak = tempStreak
-        }
+      if (prevDate === null) {
+        run = 1
       } else {
-        bestStreak = Math.max(bestStreak, tempStreak)
-        tempStreak = 1
+        const diff = (new Date(prevDate).getTime() - new Date(dateStr).getTime()) / 86400000
+        if (diff === 1) {
+          run++
+        } else {
+          runs.push(run)
+          run = 1
+        }
       }
-
-      lastDate = new Date(dateStr)
+      prevDate = dateStr
     }
-    bestStreak = Math.max(bestStreak, tempStreak)
+    if (run > 0) {
+      runs.push(run)
+    }
 
-    // This month stats
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
+    const bestStreak = runs.length > 0 ? Math.max(...runs) : 0
+    const currentStreak =
+      climbDates.length > 0 && (climbDates[0] === today || climbDates[0] === yesterday)
+        ? runs[0]
+        : 0
+
+    // This month stats — climb dates are stored as UTC, so the month
+    // boundary must be UTC too or totals shift on non-UTC servers.
+    const now = new Date()
+    const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
 
     const thisMonthClimbs = climbs.filter((c) => c.date >= startOfMonth)
     const thisMonthPoints = thisMonthClimbs.reduce((sum, c) => sum + c.points, 0)
@@ -135,14 +134,17 @@ export async function getTimeline(req: Request, res: Response, next: NextFunctio
         case 'day':
           key = date.toISOString().split('T')[0]
           break
-        case 'week':
+        case 'week': {
+          // UTC like the 'day' case — mixing UTC and server-local buckets
+          // shifts climbs across weeks/months on non-UTC servers.
           const weekStart = new Date(date)
-          weekStart.setDate(date.getDate() - date.getDay())
+          weekStart.setUTCDate(date.getUTCDate() - date.getUTCDay())
           key = weekStart.toISOString().split('T')[0]
           break
+        }
         case 'month':
         default:
-          key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+          key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
           break
       }
 

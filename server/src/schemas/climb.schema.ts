@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
-const climbTypes = ['OS', 'FLASH', 'RP', 'PP', 'TOPROPE', 'AUTOBELAY', 'TRY'] as const
+export const CLIMB_TYPES = ['OS', 'FLASH', 'RP', 'PP', 'TOPROPE', 'AUTOBELAY', 'TRY'] as const
+const climbTypes = CLIMB_TYPES
 
 export const createClimbSchema = z.object({
   routeId: z.string().uuid('Invalid route ID'),
@@ -24,7 +25,13 @@ export const updateClimbSchema = z.object({
 export const climbFiltersSchema = z.object({
   routeId: z.string().uuid().optional(),
   locationId: z.string().uuid().optional(),
-  climbType: z.string().optional(),
+  climbType: z
+    .string()
+    .optional()
+    .refine(
+      (value) => !value || value.split(',').every((t) => (CLIMB_TYPES as readonly string[]).includes(t)),
+      'Invalid climb type filter'
+    ),
   from: z.string().optional(),
   to: z.string().optional(),
   page: z.coerce.number().int().positive().default(1),

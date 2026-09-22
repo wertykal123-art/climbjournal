@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import { isAxiosError } from 'axios'
 import { User, AuthResponse } from '@/types/models'
 import { LoginRequest, RegisterRequest } from '@/types/api'
 import { authApi } from '@/api/auth.api'
@@ -29,8 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userData = await authApi.getMe()
       setUser(userData)
-    } catch {
-      localStorage.removeItem('accessToken')
+    } catch (error) {
+      // Only discard the session when the server actually rejected it —
+      // a network blip or 5xx on load shouldn't log the user out.
+      if (isAxiosError(error) && error.response?.status === 401) {
+        localStorage.removeItem('accessToken')
+      }
     } finally {
       setIsLoading(false)
     }

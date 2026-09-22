@@ -39,6 +39,7 @@ model User {
   climbs                 Climb[]
   sentFriendRequests     Friendship[] @relation("FriendshipRequester")
   receivedFriendRequests Friendship[] @relation("FriendshipAddressee")
+  refreshTokens          RefreshToken[]
 }
 
 model Friendship {
@@ -121,4 +122,8 @@ model RefreshToken {
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

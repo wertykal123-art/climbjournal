@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Climb, Route, ClimbType } from '@/types/models'
-import { CreateClimbRequest } from '@/types/api'
+import { CreateClimbRequest, UpdateClimbRequest } from '@/types/api'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -59,14 +59,27 @@ export default function ClimbForm({ climb, routes, defaultRouteId, onSubmit, onC
     setIsLoading(true)
 
     try {
-      await onSubmit({
-        routeId,
-        date,
-        climbType,
-        attemptCount: parseInt(attemptCount, 10),
-        personalRating: personalRating || undefined,
-        comments: comments || undefined,
-      })
+      if (climb) {
+        // Update: routeId is intentionally omitted (a climb stays on its
+        // route), and null clears a rating/comment the user removed.
+        const update: UpdateClimbRequest = {
+          date,
+          climbType,
+          attemptCount: attemptCount ? parseInt(attemptCount, 10) : undefined,
+          personalRating: personalRating || null,
+          comments: comments || null,
+        }
+        await onSubmit(update as CreateClimbRequest)
+      } else {
+        await onSubmit({
+          routeId,
+          date,
+          climbType,
+          attemptCount: attemptCount ? parseInt(attemptCount, 10) : undefined,
+          personalRating: personalRating || undefined,
+          comments: comments || undefined,
+        })
+      }
     } finally {
       setIsLoading(false)
     }
@@ -94,6 +107,7 @@ export default function ClimbForm({ climb, routes, defaultRouteId, onSubmit, onC
         onChange={(e) => setRouteId(e.target.value)}
         options={routeOptions}
         required
+        disabled={!!climb}
       />
 
       <div className="grid grid-cols-2 gap-4">

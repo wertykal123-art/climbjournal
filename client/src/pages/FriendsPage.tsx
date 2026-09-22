@@ -73,8 +73,10 @@ export default function FriendsPage() {
       await sendRequest(userId)
       refetchRequests()
       showToast('success', 'Friend request sent!')
-    } catch {
+    } catch (error) {
       showToast('error', 'Failed to send request')
+      // Rethrow so the search form doesn't mark the request as sent
+      throw error
     }
   }
 

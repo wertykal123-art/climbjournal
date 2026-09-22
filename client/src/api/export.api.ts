@@ -5,25 +5,32 @@ export interface ExportData {
     email: string
     username: string
     displayName: string
-    profilePicture?: string
+    profilePicture?: string | null
+    preferredGradingSystem?: string
   }
   locations: Array<{
     name: string
     type: string
-    address?: string
-    country?: string
-    description?: string
+    address?: string | null
+    country?: string | null
+    description?: string | null
+    isPublic?: boolean
+    defaultGradingSystem?: string
   }>
   routes: Array<{
     locationName: string
     name: string
     difficultyFrench: string
-    difficultyUIAA?: string
-    heightMeters?: number
-    protectionCount?: number
-    visualId?: string
-    setter?: string
-    description?: string
+    difficultyUIAA?: string | null
+    heightMeters?: number | null
+    protectionCount?: number | null
+    visualId?: string | null
+    setter?: string | null
+    description?: string | null
+    color?: string | null
+    stoneType?: string | null
+    isPublic?: boolean
+    isActive?: boolean
   }>
   climbs: Array<{
     routeName: string
@@ -31,9 +38,10 @@ export interface ExportData {
     date: string
     climbType: string
     attemptCount: number
-    personalRating?: number
-    comments?: string
-    points: number
+    personalRating?: number | null
+    comments?: string | null
+    // Informational in exports; the server recomputes points on import
+    points?: number
   }>
   exportedAt: string
 }

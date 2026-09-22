@@ -35,4 +35,8 @@ export const authApi = {
   async changePassword(data: { currentPassword: string; newPassword: string }): Promise<void> {
     await apiClient.put('/users/password', data)
   },
+
+  async deleteAccount(): Promise<void> {
+    await apiClient.delete('/users/account')
+  },
 }
