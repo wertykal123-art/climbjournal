@@ -4,7 +4,7 @@ import { CreateRouteInput, UpdateRouteInput, RouteFilters } from '../schemas/rou
 import { NotFoundError, ForbiddenError } from '../middleware/error.middleware.js'
 import { getGradeIndex, frenchToUIAA, FRENCH_GRADES } from '../utils/grades.js'
 import { calculatePoints, ClimbType } from '../utils/points.js'
-import { getFriendIds, areFriends } from '../utils/access.js'
+import { getFriendIds, areFriends, canViewRoute } from '../utils/access.js'
 
 const userSelect = {
   id: true,
@@ -19,11 +19,14 @@ export async function getRoutes(req: Request, res: Response, next: NextFunction)
     const userId = req.user!.userId
     const friendIds = await getFriendIds(userId)
 
+    // Same visibility as canViewRoute: includes every route in a location
+    // shared with the user (their own or a friend's), whoever created it.
     const where: Record<string, unknown> = {
       OR: [
         { userId },
         { isPublic: true },
         { userId: { in: friendIds } },
+        { location: { userId: { in: [userId, ...friendIds] } } },
       ],
     }
 
@@ -61,13 +64,14 @@ export async function getRoutes(req: Request, res: Response, next: NextFunction)
         include: {
           user: { select: userSelect },
           location: {
-            select: { id: true, name: true, type: true, userId: true },
+            select: { id: true, name: true, type: true, userId: true, defaultGradingSystem: true },
           },
           _count: {
             select: { climbs: true },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        // Reset (inactive) routes sink to the end; isActive desc puts true first
+        orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -100,7 +104,7 @@ export async function getRoute(req: Request, res: Response, next: NextFunction):
       include: {
         user: { select: userSelect },
         location: {
-          select: { id: true, name: true, type: true, userId: true },
+          select: { id: true, name: true, type: true, userId: true, defaultGradingSystem: true },
         },
         _count: {
           select: { climbs: true },
@@ -112,12 +116,9 @@ export async function getRoute(req: Request, res: Response, next: NextFunction):
       throw new NotFoundError('Route')
     }
 
-    const isOwner = route.userId === userId
-    if (!isOwner && !route.isPublic) {
-      const friendIds = await getFriendIds(userId)
-      if (!friendIds.includes(route.userId)) {
-        throw new ForbiddenError('Not authorized to access this route')
-      }
+    const friendIds = route.userId === userId ? [] : await getFriendIds(userId)
+    if (!canViewRoute(userId, friendIds, route)) {
+      throw new ForbiddenError('Not authorized to access this route')
     }
 
     res.json({
@@ -159,7 +160,7 @@ export async function getLocationRoutes(req: Request, res: Response, next: NextF
           select: { climbs: true },
         },
       },
-      orderBy: { name: 'asc' },
+      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
     })
 
     res.json(
@@ -203,7 +204,7 @@ export async function createRoute(req: Request, res: Response, next: NextFunctio
       },
       include: {
         location: {
-          select: { id: true, name: true, type: true, userId: true },
+          select: { id: true, name: true, type: true, userId: true, defaultGradingSystem: true },
         },
       },
     })
@@ -231,13 +232,16 @@ export async function updateRoute(req: Request, res: Response, next: NextFunctio
       throw new NotFoundError('Route')
     }
 
-    // Same rule as delete: the route owner or the location owner may edit.
-    // ("Any friend of the location owner" would let unrelated users rewrite
-    // each other's routes in a shared gym.)
+    // Locations are shared with the owner's friends: anyone who may add routes
+    // to a location (its owner and their friends) may also edit its routes,
+    // e.g. to fix a grade or mark a route as reset. Deleting stays restricted
+    // to the route or location owner.
     const isRouteOwner = existing.userId === userId
     const isLocationOwner = existing.location.userId === userId
+    const isLocationOwnerFriend =
+      !isRouteOwner && !isLocationOwner && (await areFriends(userId, existing.location.userId))
 
-    if (!isRouteOwner && !isLocationOwner) {
+    if (!isRouteOwner && !isLocationOwner && !isLocationOwnerFriend) {
       throw new ForbiddenError('Not authorized to update this route')
     }
 
@@ -266,7 +270,7 @@ export async function updateRoute(req: Request, res: Response, next: NextFunctio
       data: updateData,
       include: {
         location: {
-          select: { id: true, name: true, type: true, userId: true },
+          select: { id: true, name: true, type: true, userId: true, defaultGradingSystem: true },
         },
         _count: {
           select: { climbs: true },

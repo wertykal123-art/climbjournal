@@ -4,7 +4,7 @@ import { locationsApi } from '@/api/locations.api'
 import { routesApi } from '@/api/routes.api'
 import { climbsApi } from '@/api/climbs.api'
 import { Location, Route } from '@/types/models'
-import { CreateRouteRequest, CreateClimbRequest } from '@/types/api'
+import { CreateRouteRequest, CreateClimbRequest, UpdateRouteRequest } from '@/types/api'
 import RouteCard from '@/components/routes/RouteCard'
 import RouteForm from '@/components/routes/RouteForm'
 import ClimbForm from '@/components/climbs/ClimbForm'
@@ -100,8 +100,12 @@ export default function LocationDetailPage() {
   const handleUpdateRoute = async (data: CreateRouteRequest) => {
     if (!editingRoute) return
     try {
-      const updated = await routesApi.update(editingRoute.id, data)
-      setRoutes(routes.map((r) => (r.id === editingRoute.id ? updated : r)))
+      const updated = await routesApi.update(editingRoute.id, data as UpdateRouteRequest)
+      setRoutes(
+        updated.locationId === id
+          ? routes.map((r) => (r.id === editingRoute.id ? { ...r, ...updated } : r))
+          : routes.filter((r) => r.id !== editingRoute.id)
+      )
       showToast('success', 'Route updated successfully!')
       setEditingRoute(null)
     } catch {
@@ -159,6 +163,12 @@ export default function LocationDetailPage() {
   if (!location) {
     return null
   }
+
+  // Reset routes go last; the stable sort keeps the server's name order
+  // within each group, and a route marked as reset moves down immediately.
+  const sortedRoutes = [...routes].sort(
+    (a, b) => Number(b.isActive !== false) - Number(a.isActive !== false)
+  )
 
   const Icon = location.type === 'GYM' ? Building2 : Mountain
   const totalClimbs = routes.reduce((acc, r) => acc + (r.climbCount || 0), 0)
@@ -404,12 +414,14 @@ export default function LocationDetailPage() {
 
           {routes.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {routes.map((route) => (
+              {sortedRoutes.map((route) => (
                 <RouteCard
                   key={route.id}
                   route={{ ...route, location }}
                   onEdit={canEdit ? setEditingRoute : undefined}
-                  onDelete={canEdit ? setDeleteRouteConfirm : undefined}
+                  onDelete={
+                    isOwner || route.userId === user?.id ? setDeleteRouteConfirm : undefined
+                  }
                   onLogClimb={setLoggingClimb}
                   onReset={canEdit ? handleResetRoute : undefined}
                   canEdit={canEdit}

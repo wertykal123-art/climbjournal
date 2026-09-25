@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { routesApi } from '@/api/routes.api'
 import { climbsApi } from '@/api/climbs.api'
 import { Route, Climb, FriendClimb, StoneType } from '@/types/models'
-import { CreateClimbRequest, UpdateClimbRequest } from '@/types/api'
+import { CreateClimbRequest, UpdateClimbRequest, CreateRouteRequest, UpdateRouteRequest } from '@/types/api'
+import RouteForm from '@/components/routes/RouteForm'
+import { useLocations } from '@/hooks/useLocations'
 import ClimbCard from '@/components/climbs/ClimbCard'
 import ClimbTypeBadge from '@/components/climbs/ClimbTypeBadge'
 import ClimbForm from '@/components/climbs/ClimbForm'
@@ -82,9 +84,24 @@ export default function RouteDetailPage() {
   const menuRef = useRef<HTMLDivElement>(null)
 
   const isOwner = user?.id === route?.userId
-  // Friends of the location owner can also edit routes
+  const isLocationOwner = !!route?.location && user?.id === route.location.userId
+  // Mirrors the server: the location owner and their friends may edit routes
+  // there, but only the route or location owner may delete one.
   const isFriendOfLocationOwner = isFriend(route?.location?.userId)
-  const canEdit = isOwner || isFriendOfLocationOwner
+  const canEdit = isOwner || isLocationOwner || isFriendOfLocationOwner
+  const canDelete = isOwner || isLocationOwner
+
+  const { locations } = useLocations()
+  const [isEditingRoute, setIsEditingRoute] = useState(false)
+  // The route's own location may be a friend's, which isn't in the user's list.
+  // Memoized: RouteForm re-initializes its fields when this array changes.
+  const editLocations = useMemo(
+    () =>
+      route?.location && !locations.some((l) => l.id === route.locationId)
+        ? [route.location, ...locations]
+        : locations,
+    [route?.location, route?.locationId, locations]
+  )
 
   useEffect(() => {
     if (id) {
@@ -161,6 +178,17 @@ export default function RouteDetailPage() {
       showToast('success', 'Route marked as reset')
     } catch {
       showToast('error', 'Failed to mark route as reset')
+    }
+  }
+
+  const handleUpdateRoute = async (data: CreateRouteRequest) => {
+    try {
+      const updated = await routesApi.update(id!, data as UpdateRouteRequest)
+      setRoute((prev) => (prev ? { ...prev, ...updated } : updated))
+      showToast('success', 'Route updated successfully!')
+      setIsEditingRoute(false)
+    } catch {
+      showToast('error', 'Failed to update route')
     }
   }
 
@@ -299,23 +327,25 @@ export default function RouteDetailPage() {
                   <button
                     onClick={() => {
                       setShowMenu(false)
-                      navigate(`/routes?edit=${route.id}`)
+                      setIsEditingRoute(true)
                     }}
                     className="flex items-center gap-2 w-full px-3 py-2 text-sm text-rock-700 hover:bg-rock-50"
                   >
                     <Pencil className="w-4 h-4" />
                     Edit
                   </button>
-                  <button
-                    onClick={() => {
-                      setShowMenu(false)
-                      setShowDeleteRoute(true)
-                    }}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-fall hover:bg-rock-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </button>
+                  {canDelete && (
+                    <button
+                      onClick={() => {
+                        setShowMenu(false)
+                        setShowDeleteRoute(true)
+                      }}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-fall hover:bg-rock-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -613,6 +643,20 @@ export default function RouteDetailPage() {
       </div>
 
       {/* Modals */}
+      <Modal
+        isOpen={isEditingRoute}
+        onClose={() => setIsEditingRoute(false)}
+        title="Edit Route"
+        size="lg"
+      >
+        <RouteForm
+          route={route}
+          locations={editLocations}
+          onSubmit={handleUpdateRoute}
+          onCancel={() => setIsEditingRoute(false)}
+        />
+      </Modal>
+
       <Modal
         isOpen={showClimbModal}
         onClose={() => setShowClimbModal(false)}
