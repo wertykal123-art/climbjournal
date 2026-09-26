@@ -58,17 +58,19 @@ export interface CreateRouteRequest {
   isPublic?: boolean
 }
 
+// null clears a stored value; undefined leaves it unchanged
 export interface UpdateRouteRequest {
+  locationId?: string
   name?: string
   difficultyFrench?: string
-  difficultyUIAA?: string
-  heightMeters?: number
-  protectionCount?: number
-  visualId?: string
-  setter?: string
-  description?: string
-  color?: string
-  stoneType?: string
+  difficultyUIAA?: string | null
+  heightMeters?: number | null
+  protectionCount?: number | null
+  visualId?: string | null
+  setter?: string | null
+  description?: string | null
+  color?: string | null
+  stoneType?: string | null
   isPublic?: boolean
   isActive?: boolean
 }

@@ -3,7 +3,7 @@ import { prisma } from '../models/prisma.js'
 import { CreateClimbInput, UpdateClimbInput, ClimbFilters } from '../schemas/climb.schema.js'
 import { NotFoundError, ForbiddenError } from '../middleware/error.middleware.js'
 import { calculatePoints } from '../utils/points.js'
-import { getFriendIds } from '../utils/access.js'
+import { getFriendIds, canViewRoute } from '../utils/access.js'
 
 // A date-only "to" bound means "through the end of that day": climbs carry
 // timestamps, so lte at midnight would exclude the entire end date.
@@ -118,6 +118,7 @@ export async function getRouteClimbs(req: Request, res: Response, next: NextFunc
 
     const route = await prisma.route.findUnique({
       where: { id: routeId },
+      include: { location: { select: { userId: true } } },
     })
 
     if (!route) {
@@ -126,8 +127,7 @@ export async function getRouteClimbs(req: Request, res: Response, next: NextFunc
 
     const friendIds = await getFriendIds(userId)
 
-    const isOwner = route.userId === userId
-    if (!isOwner && !route.isPublic && !friendIds.includes(route.userId)) {
+    if (!canViewRoute(userId, friendIds, route)) {
       throw new ForbiddenError('Not authorized to access this route')
     }
 
@@ -156,6 +156,7 @@ export async function createClimb(req: Request, res: Response, next: NextFunctio
 
     const route = await prisma.route.findUnique({
       where: { id: data.routeId },
+      include: { location: { select: { userId: true } } },
     })
 
     if (!route) {
@@ -166,12 +167,9 @@ export async function createClimb(req: Request, res: Response, next: NextFunctio
       throw new ForbiddenError('Cannot log climbs on a reset route')
     }
 
-    const isOwner = route.userId === userId
-    if (!isOwner && !route.isPublic) {
-      const friendIds = await getFriendIds(userId)
-      if (!friendIds.includes(route.userId)) {
-        throw new ForbiddenError('Not authorized to log climbs on this route')
-      }
+    const friendIds = route.userId === userId ? [] : await getFriendIds(userId)
+    if (!canViewRoute(userId, friendIds, route)) {
+      throw new ForbiddenError('Not authorized to log climbs on this route')
     }
 
     const points = calculatePoints(route.difficultyFrench, data.climbType)

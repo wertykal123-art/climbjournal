@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Route, Location, StoneType } from '@/types/models'
-import { CreateRouteRequest } from '@/types/api'
+import { CreateRouteRequest, UpdateRouteRequest } from '@/types/api'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -92,18 +92,36 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
     setIsLoading(true)
 
     try {
-      await onSubmit({
-        locationId,
-        name,
-        difficultyFrench,
-        visualId: visualId || undefined,
-        setter: setter || undefined,
-        heightMeters: heightMeters ? parseFloat(heightMeters) : undefined,
-        description: description || undefined,
-        color: color || undefined,
-        stoneType: stoneType || undefined,
-        isPublic,
-      })
+      if (route) {
+        // Update: send null for emptied fields so they are actually cleared
+        // (undefined would leave the old value in place).
+        const update: UpdateRouteRequest = {
+          locationId,
+          name,
+          difficultyFrench,
+          visualId: visualId || null,
+          setter: setter || null,
+          heightMeters: heightMeters ? parseFloat(heightMeters) : null,
+          description: description || null,
+          color: color || null,
+          stoneType: stoneType || null,
+          isPublic,
+        }
+        await onSubmit(update as CreateRouteRequest)
+      } else {
+        await onSubmit({
+          locationId,
+          name,
+          difficultyFrench,
+          visualId: visualId || undefined,
+          setter: setter || undefined,
+          heightMeters: heightMeters ? parseFloat(heightMeters) : undefined,
+          description: description || undefined,
+          color: color || undefined,
+          stoneType: stoneType || undefined,
+          isPublic,
+        })
+      }
     } finally {
       setIsLoading(false)
     }
