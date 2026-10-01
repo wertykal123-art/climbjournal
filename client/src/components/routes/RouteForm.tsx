@@ -1,38 +1,28 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Check } from 'lucide-react'
 import { Route, Location, StoneType } from '@/types/models'
 import { CreateRouteRequest, UpdateRouteRequest } from '@/types/api'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import Textarea from '@/components/ui/Textarea'
+import { STONE_TYPE_OPTIONS } from '@/utils/colors'
 import { getGradeOptionsForSystem } from '@/utils/grades'
 import { useGradingSystem } from '@/hooks/useGradingSystem'
 
-const STONE_TYPE_OPTIONS: { value: StoneType; label: string }[] = [
-  { value: 'GRANITE', label: 'Granite' },
-  { value: 'LIMESTONE', label: 'Limestone' },
-  { value: 'SANDSTONE', label: 'Sandstone' },
-  { value: 'GNEISS', label: 'Gneiss' },
-  { value: 'BASALT', label: 'Basalt' },
-  { value: 'CONGLOMERATE', label: 'Conglomerate' },
-  { value: 'QUARTZITE', label: 'Quartzite' },
-  { value: 'SLATE', label: 'Slate' },
-  { value: 'SCHIST', label: 'Schist' },
-  { value: 'TUFF', label: 'Tuff' },
-  { value: 'OTHER', label: 'Other' },
+const PRESET_COLORS: { hex: string; name: string }[] = [
+  { hex: '#EF4444', name: 'Red' },
+  { hex: '#F97316', name: 'Orange' },
+  { hex: '#EAB308', name: 'Yellow' },
+  { hex: '#22C55E', name: 'Green' },
+  { hex: '#3B82F6', name: 'Blue' },
+  { hex: '#8B5CF6', name: 'Purple' },
+  { hex: '#EC4899', name: 'Pink' },
+  { hex: '#FFFFFF', name: 'White' },
+  { hex: '#000000', name: 'Black' },
+  { hex: '#6B7280', name: 'Gray' },
 ]
-
-const PRESET_COLORS = [
-  '#EF4444', // Red
-  '#F97316', // Orange
-  '#EAB308', // Yellow
-  '#22C55E', // Green
-  '#3B82F6', // Blue
-  '#8B5CF6', // Purple
-  '#EC4899', // Pink
-  '#FFFFFF', // White
-  '#000000', // Black
-  '#6B7280', // Gray
-]
+const PRESET_HEXES = PRESET_COLORS.map((c) => c.hex)
 
 interface RouteFormProps {
   route?: Route | null
@@ -43,16 +33,18 @@ interface RouteFormProps {
 }
 
 export default function RouteForm({ route, locations, defaultLocationId, onSubmit, onCancel }: RouteFormProps) {
-  const [locationId, setLocationId] = useState('')
-  const [name, setName] = useState('')
-  const [difficultyFrench, setDifficultyFrench] = useState('6a')
-  const [visualId, setVisualId] = useState('')
-  const [setter, setSetter] = useState('')
-  const [heightMeters, setHeightMeters] = useState('')
-  const [description, setDescription] = useState('')
-  const [color, setColor] = useState('')
-  const [stoneType, setStoneType] = useState<StoneType | ''>('')
-  const [isPublic, setIsPublic] = useState(false)
+  // The modal unmounts the form on close, so props are read once on mount.
+  // (Re-syncing on every new `locations` array wiped in-progress edits.)
+  const [locationId, setLocationId] = useState(() => route?.locationId ?? defaultLocationId ?? locations[0]?.id ?? '')
+  const [name, setName] = useState(route?.name ?? '')
+  const [difficultyFrench, setDifficultyFrench] = useState(route?.difficultyFrench ?? '6a')
+  const [visualId, setVisualId] = useState(route?.visualId ?? '')
+  const [setter, setSetter] = useState(route?.setter ?? '')
+  const [heightMeters, setHeightMeters] = useState(route?.heightMeters?.toString() ?? '')
+  const [description, setDescription] = useState(route?.description ?? '')
+  const [color, setColor] = useState(route?.color ?? '')
+  const [stoneType, setStoneType] = useState<StoneType | ''>(route?.stoneType ?? '')
+  const [isPublic, setIsPublic] = useState(route?.isPublic ?? false)
   const [isLoading, setIsLoading] = useState(false)
 
   const { getEffectiveSystem } = useGradingSystem()
@@ -68,24 +60,12 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
     [effectiveSystem]
   )
 
+  // Locations may arrive after the form opens; pick a default once they do.
   useEffect(() => {
-    if (route) {
-      setLocationId(route.locationId)
-      setName(route.name)
-      setDifficultyFrench(route.difficultyFrench)
-      setVisualId(route.visualId || '')
-      setSetter(route.setter || '')
-      setHeightMeters(route.heightMeters?.toString() || '')
-      setDescription(route.description || '')
-      setColor(route.color || '')
-      setStoneType(route.stoneType || '')
-      setIsPublic(route.isPublic || false)
-    } else if (defaultLocationId) {
-      setLocationId(defaultLocationId)
-    } else if (locations.length > 0) {
-      setLocationId(locations[0].id)
+    if (!locationId && locations.length > 0) {
+      setLocationId(defaultLocationId ?? locations[0].id)
     }
-  }, [route, locations, defaultLocationId])
+  }, [locationId, locations, defaultLocationId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -144,6 +124,7 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
         value={name}
         onChange={(e) => setName(e.target.value)}
         required
+        maxLength={200}
         placeholder="e.g., Crimpy Corner"
       />
 
@@ -154,7 +135,7 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
         options={gradeOptions}
       />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-4">
         <Input
           label="Visual ID"
           value={visualId}
@@ -165,6 +146,8 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
         <Input
           label="Height (m)"
           type="number"
+          inputMode="decimal"
+          min="0"
           step="0.1"
           value={heightMeters}
           onChange={(e) => setHeightMeters(e.target.value)}
@@ -180,56 +163,66 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
       />
 
       {selectedLocation?.type === 'GYM' && (
-        <div>
-          <label className="block text-sm font-medium text-rock-700 mb-2">
-            Hold Color
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {PRESET_COLORS.map((presetColor) => (
-              <button
-                key={presetColor}
-                type="button"
-                onClick={() => setColor(presetColor)}
-                className={`w-8 h-8 rounded-full border-2 transition-transform ${
-                  color === presetColor
-                    ? 'border-carabiner scale-110 ring-2 ring-carabiner ring-offset-2'
-                    : 'border-rock-300 hover:scale-105'
-                }`}
-                style={{ backgroundColor: presetColor }}
-                title={presetColor}
-              />
-            ))}
-            <div className="relative">
+        <fieldset>
+          <legend className="block text-sm font-medium text-rock-700 mb-2">Hold color</legend>
+          <div className="flex flex-wrap items-center gap-2">
+            {PRESET_COLORS.map((preset) => {
+              const selected = color.toUpperCase() === preset.hex
+              return (
+                <button
+                  key={preset.hex}
+                  type="button"
+                  onClick={() => setColor(selected ? '' : preset.hex)}
+                  aria-label={preset.name}
+                  aria-pressed={selected}
+                  title={preset.name}
+                  className={`w-9 h-9 rounded-full border-2 flex items-center justify-center transition-transform ${
+                    selected
+                      ? 'border-carabiner ring-2 ring-carabiner ring-offset-2'
+                      : 'border-rock-300 hover:scale-105'
+                  }`}
+                  style={{ backgroundColor: preset.hex }}
+                >
+                  {selected && (
+                    <Check
+                      className={`w-4 h-4 ${['#FFFFFF', '#EAB308'].includes(preset.hex) ? 'text-rock-900' : 'text-white'}`}
+                      aria-hidden="true"
+                    />
+                  )}
+                </button>
+              )
+            })}
+            <label
+              title="Custom color"
+              className={`relative w-9 h-9 rounded-full border-2 flex items-center justify-center cursor-pointer focus-within:ring-2 focus-within:ring-carabiner focus-within:ring-offset-2 ${
+                color && !PRESET_HEXES.includes(color.toUpperCase())
+                  ? 'border-carabiner ring-2 ring-carabiner ring-offset-2'
+                  : 'border-dashed border-rock-400'
+              }`}
+              style={{ backgroundColor: color && !PRESET_HEXES.includes(color.toUpperCase()) ? color : '#F1F5F9' }}
+            >
               <input
                 type="color"
+                aria-label="Custom hold color"
                 value={color || '#3B82F6'}
                 onChange={(e) => setColor(e.target.value)}
-                className="w-8 h-8 rounded-full cursor-pointer opacity-0 absolute inset-0"
+                className="absolute inset-0 w-full h-full rounded-full cursor-pointer opacity-0"
               />
-              <div
-                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center ${
-                  color && !PRESET_COLORS.includes(color)
-                    ? 'border-carabiner ring-2 ring-carabiner ring-offset-2'
-                    : 'border-rock-300'
-                }`}
-                style={{ backgroundColor: color && !PRESET_COLORS.includes(color) ? color : '#E5E7EB' }}
-              >
-                {(!color || PRESET_COLORS.includes(color)) && (
-                  <span className="text-xs text-rock-500">+</span>
-                )}
-              </div>
-            </div>
+              {(!color || PRESET_HEXES.includes(color.toUpperCase())) && (
+                <span className="text-sm text-rock-500" aria-hidden="true">+</span>
+              )}
+            </label>
             {color && (
               <button
                 type="button"
                 onClick={() => setColor('')}
-                className="text-xs text-rock-500 hover:text-rock-700 self-center ml-2"
+                className="text-xs text-rock-500 hover:text-rock-700 underline ml-1"
               >
                 Clear
               </button>
             )}
           </div>
-        </div>
+        </fieldset>
       )}
 
       {selectedLocation?.type === 'CRAG' && (
@@ -244,38 +237,32 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
         />
       )}
 
-      <div>
-        <label className="block text-sm font-medium text-rock-700 mb-1">
-          Description
-        </label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={3}
-          className="w-full px-3 py-2 border border-rock-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-carabiner focus:border-transparent"
-          placeholder="Beta, notes about the route..."
-        />
-      </div>
+      <Textarea
+        label="Description"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="Beta, notes about the route…"
+      />
 
-      <div className="flex items-center gap-2">
+      <label className="flex items-start gap-3 p-3 rounded-lg border border-rock-200 cursor-pointer hover:bg-rock-50">
         <input
           type="checkbox"
-          id="isPublicRoute"
           checked={isPublic}
           onChange={(e) => setIsPublic(e.target.checked)}
-          className="w-4 h-4 text-carabiner border-rock-300 rounded focus:ring-carabiner"
+          className="mt-0.5 w-4 h-4 text-carabiner border-rock-300 rounded focus:ring-carabiner"
         />
-        <label htmlFor="isPublicRoute" className="text-sm text-rock-700">
-          Make this route public (visible to all users)
-        </label>
-      </div>
+        <span className="text-sm">
+          <span className="font-medium text-rock-800">Public route</span>
+          <span className="block text-rock-500">Visible to all users.</span>
+        </span>
+      </label>
 
-      <div className="flex gap-3 justify-end">
-        <Button type="button" variant="secondary" onClick={onCancel}>
+      <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-end pt-2">
+        <Button type="button" variant="secondary" onClick={onCancel} disabled={isLoading}>
           Cancel
         </Button>
-        <Button type="submit" isLoading={isLoading}>
-          {route ? 'Update' : 'Create'} Route
+        <Button type="submit" isLoading={isLoading} disabled={!locationId}>
+          {route ? 'Save changes' : 'Create route'}
         </Button>
       </div>
     </form>

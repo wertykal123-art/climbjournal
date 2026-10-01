@@ -11,16 +11,16 @@ export default function Badge({
   ...props
 }: BadgeProps) {
   const variants = {
-    default: 'bg-rock-200 text-rock-800',
-    success: 'bg-green-100 text-green-800',
-    warning: 'bg-yellow-100 text-yellow-800',
-    danger: 'bg-red-100 text-red-800',
-    info: 'bg-blue-100 text-blue-800',
+    default: 'bg-rock-100 text-rock-700',
+    success: 'bg-send-light text-send-dark',
+    warning: 'bg-pump-light text-pump-dark',
+    danger: 'bg-fall-light text-fall-dark',
+    info: 'bg-carabiner-light text-carabiner-dark',
   }
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variants[variant]} ${className}`}
+      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${variants[variant]} ${className}`}
       {...props}
     >
       {children}

@@ -1,12 +1,16 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { Climb, Route, ClimbType } from '@/types/models'
 import { CreateClimbRequest, UpdateClimbRequest } from '@/types/api'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
-import { Star } from 'lucide-react'
+import Textarea from '@/components/ui/Textarea'
+import EmptyState from '@/components/ui/EmptyState'
+import { Star, Route as RouteIcon, Plus } from 'lucide-react'
 import { formatDateISO } from '@/utils/formatters'
 import { calculatePoints } from '@/utils/points'
+import { CLIMB_TYPE_OPTIONS } from '@/utils/colors'
 import { useGradingSystem } from '@/hooks/useGradingSystem'
 import { formatGradeWithSecondary } from '@/utils/grades'
 
@@ -18,45 +22,39 @@ interface ClimbFormProps {
   onCancel: () => void
 }
 
-const CLIMB_TYPES: { value: ClimbType; label: string }[] = [
-  { value: 'OS', label: 'On-Sight' },
-  { value: 'FLASH', label: 'Flash' },
-  { value: 'RP', label: 'Redpoint' },
-  { value: 'PP', label: 'Pinkpoint' },
-  { value: 'TOPROPE', label: 'Top Rope' },
-  { value: 'AUTOBELAY', label: 'Auto Belay' },
-  { value: 'TRY', label: 'Attempt' },
-]
+const TYPE_HINTS: Partial<Record<ClimbType, string>> = {
+  OS: 'First try, no beta',
+  FLASH: 'First try, with beta',
+  RP: 'Clean lead after practice',
+  PP: 'Lead on pre-placed draws',
+  TRY: "Didn't send (yet)",
+}
 
 export default function ClimbForm({ climb, routes, defaultRouteId, onSubmit, onCancel }: ClimbFormProps) {
-  const [routeId, setRouteId] = useState('')
-  const [date, setDate] = useState(formatDateISO(new Date()))
-  const [climbType, setClimbType] = useState<ClimbType>('RP')
-  const [attemptCount, setAttemptCount] = useState('1')
-  const [personalRating, setPersonalRating] = useState(0)
-  const [comments, setComments] = useState('')
+  // The modal unmounts this form when closed, so props are read once on
+  // mount. Re-syncing on every new `routes` array wiped in-progress edits.
+  const [routeId, setRouteId] = useState(() => climb?.routeId ?? defaultRouteId ?? routes[0]?.id ?? '')
+  const [date, setDate] = useState(() => formatDateISO(climb ? new Date(climb.date) : new Date()))
+  const [climbType, setClimbType] = useState<ClimbType>(climb?.climbType ?? 'RP')
+  const [attemptCount, setAttemptCount] = useState(String(climb?.attemptCount ?? 1))
+  const [personalRating, setPersonalRating] = useState(climb?.personalRating ?? 0)
+  const [comments, setComments] = useState(climb?.comments ?? '')
   const [isLoading, setIsLoading] = useState(false)
 
   const { getEffectiveSystem } = useGradingSystem()
 
+  // Routes may arrive after the form opens; pick a default once they do.
   useEffect(() => {
-    if (climb) {
-      setRouteId(climb.routeId)
-      setDate(formatDateISO(new Date(climb.date)))
-      setClimbType(climb.climbType)
-      setAttemptCount(climb.attemptCount.toString())
-      setPersonalRating(climb.personalRating || 0)
-      setComments(climb.comments || '')
-    } else if (defaultRouteId) {
-      setRouteId(defaultRouteId)
-    } else if (routes.length > 0) {
-      setRouteId(routes[0].id)
+    if (!routeId && routes.length > 0) {
+      setRouteId(defaultRouteId ?? routes[0].id)
     }
-  }, [climb, routes, defaultRouteId])
+  }, [routeId, routes, defaultRouteId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+
+    const attempts = attemptCount ? Math.max(1, parseInt(attemptCount, 10) || 1) : undefined
 
     try {
       if (climb) {
@@ -65,7 +63,7 @@ export default function ClimbForm({ climb, routes, defaultRouteId, onSubmit, onC
         const update: UpdateClimbRequest = {
           date,
           climbType,
-          attemptCount: attemptCount ? parseInt(attemptCount, 10) : undefined,
+          attemptCount: attempts,
           personalRating: personalRating || null,
           comments: comments || null,
         }
@@ -75,7 +73,7 @@ export default function ClimbForm({ climb, routes, defaultRouteId, onSubmit, onC
           routeId,
           date,
           climbType,
-          attemptCount: attemptCount ? parseInt(attemptCount, 10) : undefined,
+          attemptCount: attempts,
           personalRating: personalRating || undefined,
           comments: comments || undefined,
         })
@@ -85,19 +83,46 @@ export default function ClimbForm({ climb, routes, defaultRouteId, onSubmit, onC
     }
   }
 
-  const selectedRoute = routes.find((r) => r.id === routeId)
-  const estimatedPoints = selectedRoute
-    ? calculatePoints(selectedRoute.difficultyFrench, climbType)
-    : 0
-
   const routeOptions = useMemo(() => routes.map((r) => {
     const effectiveSystem = getEffectiveSystem(r.location)
     const gradeLabel = formatGradeWithSecondary(r.difficultyFrench, effectiveSystem)
     return {
       value: r.id,
-      label: `${r.name} (${gradeLabel}) - ${r.location?.name || 'Unknown'}`,
+      label: `${r.name} (${gradeLabel})${r.location?.name ? ` · ${r.location.name}` : ''}`,
     }
   }), [routes, getEffectiveSystem])
+
+  // Editing a climb whose route is no longer in the (active-only) list:
+  // still show it so the disabled select isn't blank.
+  const editingRouteMissing = climb && !routes.some((r) => r.id === climb.routeId)
+  const selectOptions = editingRouteMissing && climb?.route
+    ? [{ value: climb.routeId, label: climb.route.name }, ...routeOptions]
+    : routeOptions
+
+  const selectedRoute = routes.find((r) => r.id === routeId) ?? (climb?.route as Route | undefined)
+  const estimatedPoints = selectedRoute
+    ? calculatePoints(selectedRoute.difficultyFrench, climbType)
+    : 0
+
+  if (!climb && routes.length === 0) {
+    return (
+      <EmptyState
+        compact
+        icon={RouteIcon}
+        title="No routes to log yet"
+        message="Climbs are logged against a route. Add a route (or a location first) and come back."
+        action={
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Link to="/routes" onClick={onCancel} className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-carabiner text-white font-medium hover:bg-carabiner-dark">
+              <Plus className="w-4 h-4" aria-hidden="true" />
+              Add a route
+            </Link>
+            <Button variant="secondary" onClick={onCancel}>Close</Button>
+          </div>
+        }
+      />
+    )
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -105,86 +130,112 @@ export default function ClimbForm({ climb, routes, defaultRouteId, onSubmit, onC
         label="Route"
         value={routeId}
         onChange={(e) => setRouteId(e.target.value)}
-        options={routeOptions}
+        options={selectOptions}
         required
         disabled={!!climb}
       />
 
-      <div className="grid grid-cols-2 gap-4">
+      <fieldset>
+        <legend className="block text-sm font-medium text-rock-700 mb-1.5">Style</legend>
+        <div className="grid grid-cols-2 min-[400px]:grid-cols-3 sm:grid-cols-4 gap-2">
+          {CLIMB_TYPE_OPTIONS.map((opt) => {
+            const selected = climbType === opt.value
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                aria-pressed={selected}
+                title={TYPE_HINTS[opt.value]}
+                onClick={() => setClimbType(opt.value)}
+                className={`px-2 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  selected
+                    ? 'bg-carabiner text-white border-carabiner'
+                    : 'bg-white text-rock-700 border-rock-300 hover:border-carabiner hover:text-carabiner'
+                }`}
+              >
+                {opt.label}
+              </button>
+            )
+          })}
+        </div>
+        {TYPE_HINTS[climbType] && (
+          <p className="mt-1.5 text-xs text-rock-500">{TYPE_HINTS[climbType]}</p>
+        )}
+      </fieldset>
+
+      <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-4">
         <Input
           label="Date"
           type="date"
           value={date}
+          max={formatDateISO(new Date())}
           onChange={(e) => setDate(e.target.value)}
           required
         />
-
-        <Select
-          label="Climb Type"
-          value={climbType}
-          onChange={(e) => setClimbType(e.target.value as ClimbType)}
-          options={CLIMB_TYPES}
+        <Input
+          label="Attempts"
+          type="number"
+          inputMode="numeric"
+          min="1"
+          value={attemptCount}
+          onChange={(e) => setAttemptCount(e.target.value)}
         />
       </div>
 
-      <Input
-        label="Attempt Count"
-        type="number"
-        min="1"
-        value={attemptCount}
-        onChange={(e) => setAttemptCount(e.target.value)}
-      />
-
-      <div>
-        <label className="block text-sm font-medium text-rock-700 mb-1">
-          Personal Rating
-        </label>
+      <fieldset>
+        <legend className="block text-sm font-medium text-rock-700 mb-1">Your rating</legend>
         <div className="flex items-center gap-1">
           {[1, 2, 3, 4, 5].map((star) => (
             <button
               key={star}
               type="button"
               onClick={() => setPersonalRating(star === personalRating ? 0 : star)}
-              className="p-1"
+              aria-label={`${star} star${star > 1 ? 's' : ''}`}
+              aria-pressed={star <= personalRating}
+              className="p-1.5 rounded-lg hover:bg-rock-100"
             >
               <Star
+                aria-hidden="true"
                 className={`w-6 h-6 ${
                   star <= personalRating
                     ? 'text-yellow-500 fill-yellow-500'
-                    : 'text-rock-300 hover:text-rock-400'
+                    : 'text-rock-300'
                 }`}
               />
             </button>
           ))}
+          {personalRating > 0 && (
+            <button
+              type="button"
+              onClick={() => setPersonalRating(0)}
+              className="ml-2 text-xs text-rock-500 hover:text-rock-700 underline"
+            >
+              Clear
+            </button>
+          )}
         </div>
-      </div>
+      </fieldset>
 
-      <div>
-        <label className="block text-sm font-medium text-rock-700 mb-1">
-          Comments
-        </label>
-        <textarea
-          value={comments}
-          onChange={(e) => setComments(e.target.value)}
-          rows={3}
-          className="w-full px-3 py-2 border border-rock-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-carabiner focus:border-transparent"
-          placeholder="Notes about your climb..."
-        />
-      </div>
+      <Textarea
+        label="Notes"
+        value={comments}
+        onChange={(e) => setComments(e.target.value)}
+        placeholder="Beta, conditions, how it felt…"
+      />
 
       {estimatedPoints > 0 && (
-        <div className="p-3 bg-send/10 rounded-lg text-center">
+        <div className="p-3 bg-send-light border border-send/20 rounded-lg text-center">
           <span className="text-sm text-rock-600">Estimated points: </span>
           <span className="font-bold text-send">+{estimatedPoints}</span>
         </div>
       )}
 
-      <div className="flex gap-3 justify-end">
-        <Button type="button" variant="secondary" onClick={onCancel}>
+      <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-end pt-2">
+        <Button type="button" variant="secondary" onClick={onCancel} disabled={isLoading}>
           Cancel
         </Button>
-        <Button type="submit" variant="success" isLoading={isLoading}>
-          {climb ? 'Update' : 'Log'} Climb
+        <Button type="submit" variant="success" isLoading={isLoading} disabled={!routeId}>
+          {climb ? 'Save changes' : 'Log climb'}
         </Button>
       </div>
     </form>

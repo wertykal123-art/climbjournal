@@ -17,7 +17,7 @@ export default function ClimbTypeBadge({ type, size = 'md' }: ClimbTypeBadgeProp
 
   return (
     <span
-      className={`inline-flex items-center font-medium rounded-full ${colorClass} ${sizes[size]}`}
+      className={`inline-flex items-center shrink-0 whitespace-nowrap font-medium rounded-full ${colorClass} ${sizes[size]}`}
     >
       {getClimbTypeLabel(type)}
     </span>

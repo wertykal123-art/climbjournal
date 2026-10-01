@@ -6,6 +6,7 @@ import { locationsApi } from '@/api/locations.api'
 export function useLocations() {
   const [locations, setLocations] = useState<Location[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [hasLoaded, setHasLoaded] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
   const fetchLocations = useCallback(async () => {
@@ -14,6 +15,7 @@ export function useLocations() {
       setError(null)
       const data = await locationsApi.getAll()
       setLocations(data)
+      setHasLoaded(true)
     } catch (err) {
       setError(err as Error)
     } finally {
@@ -27,7 +29,8 @@ export function useLocations() {
 
   const createLocation = async (data: CreateLocationRequest) => {
     const newLocation = await locationsApi.create(data)
-    setLocations((prev) => [...prev, newLocation])
+    // Refetch so the new card gets server-computed fields (routeCount) and order.
+    await fetchLocations()
     return newLocation
   }
 
@@ -47,6 +50,7 @@ export function useLocations() {
   return {
     locations,
     isLoading,
+    isInitialLoading: isLoading && !hasLoaded,
     error,
     refetch: fetchLocations,
     createLocation,

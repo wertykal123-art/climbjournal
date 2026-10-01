@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { LeaderboardEntry } from '@/types/models'
 import { LeaderboardParams } from '@/types/api'
 import { leaderboardApi } from '@/api/leaderboard.api'
@@ -7,8 +7,11 @@ export function useLeaderboard(period: 'all' | 'monthly' | 'weekly' = 'all', par
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  // Tab switches fire overlapping requests; only the latest may land.
+  const requestIdRef = useRef(0)
 
   const fetchLeaderboard = useCallback(async () => {
+    const requestId = ++requestIdRef.current
     try {
       setIsLoading(true)
       setError(null)
@@ -25,11 +28,13 @@ export function useLeaderboard(period: 'all' | 'monthly' | 'weekly' = 'all', par
           data = await leaderboardApi.getGlobal(params)
       }
 
+      if (requestId !== requestIdRef.current) return
       setEntries(data)
     } catch (err) {
+      if (requestId !== requestIdRef.current) return
       setError(err as Error)
     } finally {
-      setIsLoading(false)
+      if (requestId === requestIdRef.current) setIsLoading(false)
     }
   }, [period, params?.limit, params?.offset])
 

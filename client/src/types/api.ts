@@ -36,9 +36,9 @@ export interface CreateLocationRequest {
 export interface UpdateLocationRequest {
   name?: string
   type?: 'GYM' | 'CRAG'
-  address?: string
-  country?: string
-  description?: string
+  address?: string | null
+  country?: string | null
+  description?: string | null
   isPublic?: boolean
   defaultGradingSystem?: 'FRENCH' | 'UIAA'
 }

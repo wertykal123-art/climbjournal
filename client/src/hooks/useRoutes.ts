@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { Route } from '@/types/models'
 import { CreateRouteRequest, UpdateRouteRequest, RouteFilters, PaginatedResponse } from '@/types/api'
 import { routesApi } from '@/api/routes.api'
@@ -7,13 +7,18 @@ export function useRoutes(filters?: RouteFilters) {
   const [data, setData] = useState<PaginatedResponse<Route> | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  // Ignore responses from superseded requests (fast filter/page changes).
+  const requestIdRef = useRef(0)
 
   const fetchRoutes = useCallback(async () => {
+    const requestId = ++requestIdRef.current
     try {
       setIsLoading(true)
       setError(null)
       if (filters?.page || filters?.limit) {
-        setData(await routesApi.getAll(filters))
+        const page = await routesApi.getAll(filters)
+        if (requestId !== requestIdRef.current) return
+        setData(page)
       } else {
         // Callers without explicit pagination expect the full collection
         // (route pickers, the routes grid) — the server caps a single page
@@ -24,12 +29,14 @@ export function useRoutes(filters?: RouteFilters) {
           const next = await routesApi.getAll({ ...filters, page, limit: 100 })
           all.push(...next.data)
         }
+        if (requestId !== requestIdRef.current) return
         setData({ ...first, data: all })
       }
     } catch (err) {
+      if (requestId !== requestIdRef.current) return
       setError(err as Error)
     } finally {
-      setIsLoading(false)
+      if (requestId === requestIdRef.current) setIsLoading(false)
     }
   }, [filters?.locationId, filters?.minGrade, filters?.maxGrade, filters?.search, filters?.includeReset, filters?.page, filters?.limit])
 
@@ -60,6 +67,8 @@ export function useRoutes(filters?: RouteFilters) {
     page: data?.page ?? 1,
     totalPages: data?.totalPages ?? 1,
     isLoading,
+    /** True only until the first response arrives; use for full-page spinners. */
+    isInitialLoading: isLoading && data === null,
     error,
     refetch: fetchRoutes,
     createRoute,

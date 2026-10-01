@@ -20,10 +20,45 @@ export default {
           900: '#0f172a',
         },
         chalk: '#F7FAFC',
-        carabiner: '#3182CE',
-        send: '#38A169',
-        pump: '#DD6B20',
-        fall: '#E53E3E',
+        carabiner: {
+          DEFAULT: '#3182CE',
+          dark: '#2B6CB0',
+          light: '#EBF4FF',
+        },
+        send: {
+          DEFAULT: '#38A169',
+          dark: '#2F855A',
+          light: '#F0FFF4',
+        },
+        pump: {
+          DEFAULT: '#DD6B20',
+          dark: '#C05621',
+          light: '#FFFAF0',
+        },
+        fall: {
+          DEFAULT: '#E53E3E',
+          dark: '#C53030',
+          light: '#FFF5F5',
+        },
+      },
+      keyframes: {
+        'slide-in': {
+          from: { opacity: '0', transform: 'translateY(-8px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'fade-in': {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+        'sheet-up': {
+          from: { opacity: '0', transform: 'translateY(16px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        'slide-in': 'slide-in 0.2s ease-out',
+        'fade-in': 'fade-in 0.15s ease-out',
+        'sheet-up': 'sheet-up 0.2s ease-out',
       },
     },
   },

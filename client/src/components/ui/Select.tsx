@@ -1,4 +1,5 @@
-import { SelectHTMLAttributes, forwardRef } from 'react'
+import { SelectHTMLAttributes, forwardRef, useId } from 'react'
+import { fieldClasses } from './Input'
 
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
@@ -8,10 +9,11 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ className = '', label, error, id, options, ...props }, ref) => {
-    const selectId = id || label?.toLowerCase().replace(/\s/g, '-')
+    const generatedId = useId()
+    const selectId = id || generatedId
 
     return (
-      <div className="w-full">
+      <div className="w-full min-w-0">
         {label && (
           <label htmlFor={selectId} className="block text-sm font-medium text-rock-700 mb-1">
             {label}
@@ -20,11 +22,9 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           id={selectId}
-          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-colors bg-white ${
-            error
-              ? 'border-fall focus:ring-fall'
-              : 'border-rock-300 focus:ring-carabiner'
-          } ${className}`}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${selectId}-error` : undefined}
+          className={`${fieldClasses(!!error)} truncate ${className}`}
           {...props}
         >
           {options.map((option) => (
@@ -33,7 +33,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             </option>
           ))}
         </select>
-        {error && <p className="mt-1 text-sm text-fall">{error}</p>}
+        {error && <p id={`${selectId}-error`} className="mt-1 text-sm text-fall">{error}</p>}
       </div>
     )
   }

@@ -95,4 +95,23 @@ apiClient.interceptors.response.use(
   }
 )
 
+/**
+ * Pull a human-readable message out of an API error. Prefers the first
+ * field-level validation message, then the server's message, then fallback.
+ */
+export function getErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as
+      | { message?: string; errors?: Record<string, string[]> }
+      | undefined
+    const firstFieldError = data?.errors
+      ? Object.values(data.errors).flat()[0]
+      : undefined
+    if (firstFieldError) return firstFieldError
+    if (data?.message && data.message !== 'Validation failed') return data.message
+    if (!error.response) return 'Network error. Check your connection and try again.'
+  }
+  return fallback
+}
+
 export default apiClient
