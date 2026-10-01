@@ -18,6 +18,7 @@ import Button, { LinkButton } from '@/components/ui/Button'
 import PageHeader from '@/components/ui/PageHeader'
 import StatTile from '@/components/ui/StatTile'
 import Badge from '@/components/ui/Badge'
+import Select from '@/components/ui/Select'
 import EmptyState, { ErrorState } from '@/components/ui/EmptyState'
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card'
 import { PageSpinner } from '@/components/ui/Spinner'
@@ -43,6 +44,41 @@ import { formatDate } from '@/utils/formatters'
 import { compareGrades, frenchToUIAA } from '@/utils/grades'
 import { getStoneTypeLabel } from '@/utils/colors'
 
+type RouteSort = 'newest' | 'oldest' | 'hardest' | 'easiest'
+
+const ROUTE_SORT_OPTIONS: { value: RouteSort; label: string }[] = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'hardest', label: 'Hardest first' },
+  { value: 'easiest', label: 'Easiest first' },
+]
+
+const ROUTE_SORT_KEY = 'climbjournal.locationRouteSort'
+
+function readSavedSort(): RouteSort {
+  try {
+    const saved = localStorage.getItem(ROUTE_SORT_KEY)
+    if (ROUTE_SORT_OPTIONS.some((o) => o.value === saved)) return saved as RouteSort
+  } catch {
+    // Storage unavailable (private mode); fall back to the default.
+  }
+  return 'newest'
+}
+
+function compareRoutes(a: Route, b: Route, sort: RouteSort): number {
+  const byDate = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  switch (sort) {
+    case 'oldest':
+      return byDate
+    case 'hardest':
+      return compareGrades(b.difficultyFrench, a.difficultyFrench) || -byDate
+    case 'easiest':
+      return compareGrades(a.difficultyFrench, b.difficultyFrench) || -byDate
+    default:
+      return -byDate
+  }
+}
+
 export default function LocationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -60,6 +96,16 @@ export default function LocationDetailPage() {
   const [loggingClimb, setLoggingClimb] = useState<Route | null>(null)
   const [showDeleteLocation, setShowDeleteLocation] = useState(false)
   const [isEditingLocation, setIsEditingLocation] = useState(false)
+  const [routeSort, setRouteSort] = useState<RouteSort>(readSavedSort)
+
+  const changeRouteSort = (sort: RouteSort) => {
+    setRouteSort(sort)
+    try {
+      localStorage.setItem(ROUTE_SORT_KEY, sort)
+    } catch {
+      // Not persisted; the choice still applies for this visit.
+    }
+  }
 
   const isOwner = user?.id === location?.userId
   const isFriendOfOwner = isFriend(location?.userId)
@@ -196,10 +242,11 @@ export default function LocationDetailPage() {
     )
   }
 
-  // Reset routes go last; the stable sort keeps the server's name order
-  // within each group, and a route marked as reset moves down immediately.
+  // Reset routes always go last; within each group, the user's chosen order.
   const sortedRoutes = [...routes].sort(
-    (a, b) => Number(b.isActive !== false) - Number(a.isActive !== false)
+    (a, b) =>
+      Number(b.isActive !== false) - Number(a.isActive !== false) ||
+      compareRoutes(a, b, routeSort)
   )
 
   const Icon = location.type === 'GYM' ? Building2 : Mountain
@@ -336,9 +383,22 @@ export default function LocationDetailPage() {
         </Card>
 
         <section className="lg:col-span-2 space-y-3">
-          <h2 className="text-lg font-semibold text-rock-900">
-            Routes <span className="text-rock-400 font-normal">({routes.length})</span>
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold text-rock-900">
+              Routes <span className="text-rock-400 font-normal">({routes.length})</span>
+            </h2>
+            {routes.length > 1 && (
+              <div className="w-44">
+                <Select
+                  aria-label="Sort routes"
+                  value={routeSort}
+                  onChange={(e) => changeRouteSort(e.target.value as RouteSort)}
+                  options={ROUTE_SORT_OPTIONS}
+                  className="!py-1.5 text-sm"
+                />
+              </div>
+            )}
+          </div>
 
           {sortedRoutes.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
