@@ -1,24 +1,42 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Header from './Header'
 import Sidebar from './Sidebar'
 import { ToastContainer } from '@/components/ui/Toast'
+import { CelebrationHost } from '@/components/celebration/Celebration'
+import SessionBar from '@/components/session/SessionBar'
+import { useSession } from '@/context/SessionContext'
 
 export default function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const closeSidebar = useCallback(() => setSidebarOpen(false), [])
+  const { session } = useSession()
 
   return (
     <div className="min-h-screen bg-rock-50">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[70] focus:px-4 focus:py-2 focus:bg-white focus:rounded-lg focus:shadow"
+      >
+        Skip to content
+      </a>
       <Header onMenuClick={() => setSidebarOpen(true)} />
       <div className="flex">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className="flex-1 p-4 lg:p-6 min-h-[calc(100vh-4rem)]">
-          <div className="max-w-7xl mx-auto">
+        <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
+        {/* pb-28 keeps the last row clear of the floating "log climb" button */}
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className={`flex-1 min-w-0 px-4 pt-4 sm:px-6 sm:pt-6 focus:outline-none ${session ? 'pb-44' : 'pb-28'}`}
+        >
+          <div className="max-w-6xl mx-auto">
             <Outlet />
           </div>
         </main>
       </div>
+      <SessionBar />
       <ToastContainer />
+      <CelebrationHost />
     </div>
   )
 }

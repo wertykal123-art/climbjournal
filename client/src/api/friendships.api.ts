@@ -1,10 +1,10 @@
 import apiClient from './client'
-import { Friendship, Friend, UserSummary } from '@/types/models'
+import { Friendship, Friend, UserSearchResult } from '@/types/models'
 import { SendFriendRequestRequest, UpdateFriendRequestRequest } from '@/types/api'
 
 export const friendshipsApi = {
-  async searchUsers(query: string): Promise<UserSummary[]> {
-    const response = await apiClient.get<UserSummary[]>('/friendships/search', {
+  async searchUsers(query: string): Promise<UserSearchResult[]> {
+    const response = await apiClient.get<UserSearchResult[]>('/friendships/search', {
       params: { query },
     })
     return response.data

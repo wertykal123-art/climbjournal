@@ -1,7 +1,7 @@
-import { ClimbType } from '@/types/models'
+import { ClimbType, StoneType } from '@/types/models'
 
 export function getGradeColor(grade: string): string {
-  const gradeNum = grade.replace(/[+\-]/g, '')
+  const gradeNum = grade.replace(/[+-]/g, '')
 
   if (gradeNum === '4' || gradeNum === '5a' || gradeNum === '5b') {
     return 'bg-green-500 text-white'
@@ -22,7 +22,7 @@ export function getGradeColor(grade: string): string {
 }
 
 export function getGradeColorHex(grade: string): string {
-  const gradeNum = grade.replace(/[+\-]/g, '')
+  const gradeNum = grade.replace(/[+-]/g, '')
 
   if (gradeNum === '4' || gradeNum === '5a' || gradeNum === '5b') {
     return '#22c55e' // green-500
@@ -48,7 +48,7 @@ export const CLIMB_TYPE_COLORS: Record<ClimbType, string> = {
   RP: 'bg-orange-700 text-orange-50',
   PP: 'bg-blue-500 text-white',
   TOPROPE: 'bg-gray-500 text-white',
-  AUTOBELAY: 'bg-gray-400 text-gray-900',
+  AUTOBELAY: 'bg-teal-100 text-teal-800',
   TRY: 'bg-white border-2 border-gray-400 text-gray-600',
 }
 
@@ -69,3 +69,47 @@ export function getClimbTypeColor(type: ClimbType): string {
 export function getClimbTypeLabel(type: ClimbType): string {
   return CLIMB_TYPE_LABELS[type] || type
 }
+
+export const CLIMB_TYPE_ORDER: ClimbType[] = ['OS', 'FLASH', 'RP', 'PP', 'TOPROPE', 'AUTOBELAY', 'TRY']
+
+export const CLIMB_TYPE_OPTIONS: { value: ClimbType; label: string }[] = CLIMB_TYPE_ORDER.map((type) => ({
+  value: type,
+  label: CLIMB_TYPE_LABELS[type],
+}))
+
+/** Chart colours; every type gets a distinct hue. */
+export const CLIMB_TYPE_HEX: Record<ClimbType, string> = {
+  OS: '#EAB308', // gold
+  FLASH: '#94A3B8', // silver
+  RP: '#B45309', // bronze
+  PP: '#3B82F6', // blue
+  TOPROPE: '#475569', // slate
+  AUTOBELAY: '#14B8A6', // teal
+  TRY: '#CBD5E1', // light slate
+}
+
+export const STONE_TYPE_LABELS: Record<StoneType, string> = {
+  GRANITE: 'Granite',
+  LIMESTONE: 'Limestone',
+  SANDSTONE: 'Sandstone',
+  GNEISS: 'Gneiss',
+  BASALT: 'Basalt',
+  CONGLOMERATE: 'Conglomerate',
+  QUARTZITE: 'Quartzite',
+  SLATE: 'Slate',
+  SCHIST: 'Schist',
+  TUFF: 'Tuff',
+  OTHER: 'Other',
+}
+
+export const STONE_TYPE_OPTIONS: { value: StoneType; label: string }[] = (
+  Object.keys(STONE_TYPE_LABELS) as StoneType[]
+).map((type) => ({ value: type, label: STONE_TYPE_LABELS[type] }))
+
+export function getStoneTypeLabel(type: string): string {
+  return STONE_TYPE_LABELS[type as StoneType] || type
+}
+
+/** Shared chart styling (rock-200 grid, rock-500 ticks). */
+export const CHART_GRID_COLOR = '#e2e8f0'
+export const CHART_TICK_COLOR = '#64748b'

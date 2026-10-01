@@ -39,6 +39,12 @@ export interface UserSummary {
   profilePicture?: string
 }
 
+export type Relationship = 'FRIENDS' | 'OUTGOING' | 'INCOMING' | 'NONE'
+
+export interface UserSearchResult extends UserSummary {
+  relationship?: Relationship
+}
+
 export interface Friendship {
   id: string
   requesterId: string
@@ -106,6 +112,14 @@ export interface Climb {
   createdAt: string
   updatedAt: string
   route?: Route
+  /** Only on the create response: set when this climb is a new personal best. */
+  achievement?: Achievement | null
+}
+
+export interface Achievement {
+  type: 'NEW_MAX_GRADE'
+  grade: string
+  previousGrade: string | null
 }
 
 export interface FriendClimb extends Climb {

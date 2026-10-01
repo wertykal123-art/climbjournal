@@ -21,7 +21,7 @@ export default function GradeBadge({ grade, system = 'french', size = 'md' }: Gr
 
   return (
     <span
-      className={`inline-flex items-center font-semibold rounded-full ${colorClass} ${sizes[size]}`}
+      className={`inline-flex items-center shrink-0 whitespace-nowrap font-semibold rounded-full ${colorClass} ${sizes[size]}`}
     >
       {displayGrade}
       {showBoth && (

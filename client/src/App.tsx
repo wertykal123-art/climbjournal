@@ -3,6 +3,7 @@ import { useAuth } from '@/context/AuthContext'
 import MainLayout from '@/components/layout/MainLayout'
 import AuthLayout from '@/components/layout/AuthLayout'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
+import { PageSpinner } from '@/components/ui/Spinner'
 import LoginPage from '@/pages/LoginPage'
 import RegisterPage from '@/pages/RegisterPage'
 import DashboardPage from '@/pages/DashboardPage'
@@ -17,12 +18,13 @@ import ProfilePage from '@/pages/ProfilePage'
 import FriendsPage from '@/pages/FriendsPage'
 import FriendClimbsPage from '@/pages/FriendClimbsPage'
 import NotFoundPage from '@/pages/NotFoundPage'
+import SessionPage from '@/pages/SessionPage'
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
 
   if (isLoading) {
-    return null
+    return <PageSpinner />
   }
 
   if (isAuthenticated) {
@@ -61,6 +63,7 @@ export default function App() {
         <Route path="/routes" element={<RoutesPage />} />
         <Route path="/routes/:id" element={<RouteDetailPage />} />
         <Route path="/journal" element={<JournalPage />} />
+        <Route path="/session" element={<SessionPage />} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/friends" element={<FriendsPage />} />

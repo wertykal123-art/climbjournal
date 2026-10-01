@@ -1,73 +1,66 @@
 import { ClimbTypeDistribution } from '@/types/models'
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts'
-import { getClimbTypeLabel } from '@/utils/colors'
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { getClimbTypeLabel, CLIMB_TYPE_HEX, CHART_GRID_COLOR } from '@/utils/colors'
+import ChartEmpty from './ChartEmpty'
 
 interface ClimbTypeChartProps {
   data: ClimbTypeDistribution[]
   height?: number
 }
 
-const COLORS = {
-  OS: '#EAB308',      // gold
-  FLASH: '#9CA3AF',   // silver
-  RP: '#B45309',      // bronze
-  PP: '#3B82F6',      // blue
-  TOPROPE: '#6B7280', // gray
-  AUTOBELAY: '#9CA3AF', // light gray
-  TRY: '#D1D5DB',     // very light gray
-}
-
 export default function ClimbTypeChart({ data, height = 300 }: ClimbTypeChartProps) {
   if (data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-[300px] text-rock-500">
-        No data to display
-      </div>
-    )
+    return <ChartEmpty height={height} message="No climbs logged yet" />
   }
 
   const chartData = data.map((d) => ({
     ...d,
     name: getClimbTypeLabel(d.type),
-    color: COLORS[d.type] || '#6B7280',
+    color: CLIMB_TYPE_HEX[d.type] || '#64748b',
   }))
 
+  // Labels around the pie clip on narrow screens; use a wrapping HTML legend instead.
+  const pieHeight = Math.max(160, height - 90)
+
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <PieChart>
-        <Pie
-          data={chartData}
-          dataKey="count"
-          nameKey="name"
-          cx="50%"
-          cy="50%"
-          outerRadius={80}
-          innerRadius={40}
-          paddingAngle={2}
-          label={({ name, percentage }) => `${name} (${percentage}%)`}
-          labelLine={false}
-        >
-          {chartData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={entry.color} />
-          ))}
-        </Pie>
-        <Tooltip
-          contentStyle={{
-            backgroundColor: 'white',
-            border: '1px solid #e2e8f0',
-            borderRadius: '8px',
-          }}
-          formatter={(value: number, name: string) => [`${value} climbs`, name]}
-        />
-        <Legend />
-      </PieChart>
-    </ResponsiveContainer>
+    <div>
+      <ResponsiveContainer width="100%" height={pieHeight}>
+        <PieChart>
+          <Pie
+            data={chartData}
+            dataKey="count"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            outerRadius="90%"
+            innerRadius="55%"
+            paddingAngle={2}
+            isAnimationActive={false}
+          >
+            {chartData.map((entry) => (
+              <Cell key={entry.type} fill={entry.color} />
+            ))}
+          </Pie>
+          <Tooltip
+            contentStyle={{
+              backgroundColor: 'white',
+              border: `1px solid ${CHART_GRID_COLOR}`,
+              borderRadius: '8px',
+              fontSize: 13,
+            }}
+            formatter={(value: number, name: string) => [`${value} climbs`, name]}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+      <ul className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-sm">
+        {chartData.map((entry) => (
+          <li key={entry.type} className="flex items-center gap-1.5 text-rock-700">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }} aria-hidden="true" />
+            {entry.name}
+            <span className="text-rock-400">{entry.percentage}%</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }

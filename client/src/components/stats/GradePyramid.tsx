@@ -10,7 +10,8 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts'
-import { getGradeColorHex } from '@/utils/colors'
+import { getGradeColorHex, CHART_GRID_COLOR, CHART_TICK_COLOR } from '@/utils/colors'
+import ChartEmpty from './ChartEmpty'
 import { useGradingSystem } from '@/hooks/useGradingSystem'
 import { frenchToUIAA } from '@/utils/grades'
 
@@ -32,11 +33,7 @@ export default function GradePyramid({ data, height = 300 }: GradePyramidProps) 
   }, [data, effectiveSystem])
 
   if (data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-[300px] text-rock-500">
-        No data to display
-      </div>
-    )
+    return <ChartEmpty height={height} message="No sends logged yet" />
   }
 
   return (
@@ -44,20 +41,28 @@ export default function GradePyramid({ data, height = 300 }: GradePyramidProps) 
       <BarChart
         data={pyramidData}
         layout="vertical"
-        margin={{ top: 10, right: 20, left: 40, bottom: 10 }}
+        margin={{ top: 4, right: 12, left: 0, bottom: 4 }}
       >
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-        <XAxis type="number" tick={{ fontSize: 12 }} stroke="#94a3b8" />
+        <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} horizontal={false} />
+        <XAxis
+          type="number"
+          allowDecimals={false}
+          tick={{ fontSize: 11, fill: CHART_TICK_COLOR }}
+          tickLine={false}
+          axisLine={{ stroke: CHART_GRID_COLOR }}
+        />
         <YAxis
           type="category"
           dataKey="displayGrade"
-          tick={{ fontSize: 12, fontWeight: 600 }}
-          stroke="#94a3b8"
+          tick={{ fontSize: 12, fontWeight: 600, fill: CHART_TICK_COLOR }}
+          tickLine={false}
+          axisLine={false}
+          width={effectiveSystem === 'UIAA' ? 48 : 36}
         />
         <Tooltip
           contentStyle={{
             backgroundColor: 'white',
-            border: '1px solid #e2e8f0',
+            border: `1px solid ${CHART_GRID_COLOR}`,
             borderRadius: '8px',
           }}
           formatter={(value: number, name: string) => [

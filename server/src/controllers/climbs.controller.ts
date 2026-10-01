@@ -4,6 +4,7 @@ import { CreateClimbInput, UpdateClimbInput, ClimbFilters } from '../schemas/cli
 import { NotFoundError, ForbiddenError } from '../middleware/error.middleware.js'
 import { calculatePoints } from '../utils/points.js'
 import { getFriendIds, canViewRoute } from '../utils/access.js'
+import { compareGrades } from '../utils/grades.js'
 
 // A date-only "to" bound means "through the end of that day": climbs carry
 // timestamps, so lte at midnight would exclude the entire end date.
@@ -174,6 +175,24 @@ export async function createClimb(req: Request, res: Response, next: NextFunctio
 
     const points = calculatePoints(route.difficultyFrench, data.climbType)
 
+    // A send (anything but an attempt — same rule as the overview's
+    // hardestGrade) above every previous send is a new personal best.
+    let achievement: { type: 'NEW_MAX_GRADE'; grade: string; previousGrade: string | null } | null = null
+    if (data.climbType !== 'TRY') {
+      const previousSends = await prisma.climb.findMany({
+        where: { userId, climbType: { not: 'TRY' } },
+        select: { route: { select: { difficultyFrench: true } } },
+        distinct: ['routeId'],
+      })
+      const previousGrade = previousSends.reduce<string | null>(
+        (max, c) => (!max || compareGrades(c.route.difficultyFrench, max) > 0 ? c.route.difficultyFrench : max),
+        null
+      )
+      if (!previousGrade || compareGrades(route.difficultyFrench, previousGrade) > 0) {
+        achievement = { type: 'NEW_MAX_GRADE', grade: route.difficultyFrench, previousGrade }
+      }
+    }
+
     const climb = await prisma.climb.create({
       data: {
         ...data,
@@ -192,7 +211,7 @@ export async function createClimb(req: Request, res: Response, next: NextFunctio
       },
     })
 
-    res.status(201).json(climb)
+    res.status(201).json({ ...climb, achievement })
   } catch (error) {
     next(error)
   }

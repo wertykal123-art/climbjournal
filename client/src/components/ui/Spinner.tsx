@@ -13,7 +13,10 @@ export default function Spinner({ size = 'md', className = '' }: SpinnerProps) {
   }
 
   return (
-    <Loader2 className={`animate-spin text-carabiner ${sizes[size]} ${className}`} />
+    <span role="status" className="inline-flex">
+      <Loader2 className={`animate-spin text-carabiner ${sizes[size]} ${className}`} aria-hidden="true" />
+      <span className="sr-only">Loading…</span>
+    </span>
   )
 }
 
@@ -21,6 +24,15 @@ export function PageSpinner() {
   return (
     <div className="flex items-center justify-center min-h-[400px]">
       <Spinner size="lg" />
+    </div>
+  )
+}
+
+/** Spinner for use inside a card or chart area; fills the given height. */
+export function InlineSpinner({ height = 200 }: { height?: number }) {
+  return (
+    <div className="flex items-center justify-center" style={{ height }}>
+      <Spinner />
     </div>
   )
 }

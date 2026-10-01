@@ -4,101 +4,127 @@ import OverviewCards from '@/components/stats/OverviewCards'
 import TimelineChart from '@/components/stats/TimelineChart'
 import GradePyramid from '@/components/stats/GradePyramid'
 import ClimbTypeChart from '@/components/stats/ClimbTypeChart'
-import { Card, CardBody, CardHeader } from '@/components/ui/Card'
-import { PageSpinner } from '@/components/ui/Spinner'
+import ChartEmpty from '@/components/stats/ChartEmpty'
+import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card'
+import { PageSpinner, InlineSpinner } from '@/components/ui/Spinner'
+import { ErrorState } from '@/components/ui/EmptyState'
+import PageHeader from '@/components/ui/PageHeader'
 import Select from '@/components/ui/Select'
+import SegmentedControl from '@/components/ui/SegmentedControl'
+import GradeBadge from '@/components/routes/GradeBadge'
+import { useGradingSystem } from '@/hooks/useGradingSystem'
+
+const CHART_HEIGHT = 280
 
 export default function StatsPage() {
   const [timelinePeriod, setTimelinePeriod] = useState<'week' | 'month' | 'year' | 'all'>('year')
   const [timelineGroup, setTimelineGroup] = useState<'day' | 'week' | 'month'>('month')
+  const [timelineMetric, setTimelineMetric] = useState<'points' | 'climbs'>('points')
+  const { getGradeBadgeSystem } = useGradingSystem()
 
-  const { stats, isLoading: statsLoading } = useOverviewStats()
-  const { data: timelineData, isLoading: timelineLoading } = useTimelineStats({
+  const { stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useOverviewStats()
+  const { data: timelineData, isLoading: timelineLoading, error: timelineError, refetch: refetchTimeline } = useTimelineStats({
     period: timelinePeriod,
     groupBy: timelineGroup,
   })
-  const { data: gradeData, isLoading: gradeLoading } = useGradeDistribution()
-  const { data: typeData, isLoading: typeLoading } = useClimbTypeDistribution()
-  const { data: pyramidData, isLoading: pyramidLoading } = usePyramidData()
+  const { data: gradeData, isLoading: gradeLoading, error: gradeError, refetch: refetchGrades } = useGradeDistribution()
+  const { data: typeData, isLoading: typeLoading, error: typeError, refetch: refetchTypes } = useClimbTypeDistribution()
+  const { data: pyramidData, isLoading: pyramidLoading, error: pyramidError, refetch: refetchPyramid } = usePyramidData()
 
-  if (statsLoading) {
+  if (statsLoading && !stats) {
     return <PageSpinner />
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-rock-900">Statistics</h1>
-        <p className="text-rock-600">Analyze your climbing performance</p>
-      </div>
+    <div className="space-y-4 sm:space-y-6">
+      <PageHeader title="Statistics" subtitle="Analyze your climbing performance" />
 
-      {stats && <OverviewCards stats={stats} />}
+      {statsError && !stats ? (
+        <Card><ErrorState onRetry={refetchStats} /></Card>
+      ) : (
+        stats && <OverviewCards stats={stats} />
+      )}
 
       <Card>
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h3 className="font-semibold text-rock-900">Activity Timeline</h3>
-          <div className="flex gap-2">
-            <Select
-              value={timelinePeriod}
-              onChange={(e) => setTimelinePeriod(e.target.value as typeof timelinePeriod)}
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle>Activity Timeline</CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <SegmentedControl
+              label="Timeline metric"
+              value={timelineMetric}
+              onChange={setTimelineMetric}
               options={[
-                { value: 'week', label: 'Last Week' },
-                { value: 'month', label: 'Last Month' },
-                { value: 'year', label: 'Last Year' },
-                { value: 'all', label: 'All Time' },
+                { value: 'points', label: 'Points' },
+                { value: 'climbs', label: 'Climbs' },
               ]}
-              className="w-32"
             />
-            <Select
-              value={timelineGroup}
-              onChange={(e) => setTimelineGroup(e.target.value as typeof timelineGroup)}
-              options={[
-                { value: 'day', label: 'By Day' },
-                { value: 'week', label: 'By Week' },
-                { value: 'month', label: 'By Month' },
-              ]}
-              className="w-32"
-            />
+            <div className="flex gap-2">
+              <Select
+                aria-label="Time period"
+                value={timelinePeriod}
+                onChange={(e) => setTimelinePeriod(e.target.value as typeof timelinePeriod)}
+                options={[
+                  { value: 'week', label: 'Last week' },
+                  { value: 'month', label: 'Last month' },
+                  { value: 'year', label: 'Last year' },
+                  { value: 'all', label: 'All time' },
+                ]}
+                className="!w-auto !py-1.5 text-sm"
+              />
+              <Select
+                aria-label="Group by"
+                value={timelineGroup}
+                onChange={(e) => setTimelineGroup(e.target.value as typeof timelineGroup)}
+                options={[
+                  { value: 'day', label: 'By day' },
+                  { value: 'week', label: 'By week' },
+                  { value: 'month', label: 'By month' },
+                ]}
+                className="!w-auto !py-1.5 text-sm"
+              />
+            </div>
           </div>
         </CardHeader>
-        <CardBody>
-          {timelineLoading ? (
-            <div className="h-[300px] flex items-center justify-center">
-              <PageSpinner />
-            </div>
+        <CardBody className="!px-2 sm:!px-4">
+          {timelineError ? (
+            <ErrorState compact onRetry={refetchTimeline} />
+          ) : timelineLoading && timelineData.length === 0 ? (
+            <InlineSpinner height={CHART_HEIGHT} />
           ) : (
-            <TimelineChart data={timelineData} dataKey="points" />
+            <div className={timelineLoading ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
+              <TimelineChart data={timelineData} dataKey={timelineMetric} height={CHART_HEIGHT} />
+            </div>
           )}
         </CardBody>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <Card>
           <CardHeader>
-            <h3 className="font-semibold text-rock-900">Grade Pyramid</h3>
+            <CardTitle>Grade Pyramid</CardTitle>
           </CardHeader>
-          <CardBody>
-            {pyramidLoading ? (
-              <div className="h-[300px] flex items-center justify-center">
-                <PageSpinner />
-              </div>
+          <CardBody className="!px-2 sm:!px-4">
+            {pyramidError ? (
+              <ErrorState compact onRetry={refetchPyramid} />
+            ) : pyramidLoading ? (
+              <InlineSpinner height={CHART_HEIGHT} />
             ) : (
-              <GradePyramid data={pyramidData} />
+              <GradePyramid data={pyramidData} height={CHART_HEIGHT} />
             )}
           </CardBody>
         </Card>
 
         <Card>
           <CardHeader>
-            <h3 className="font-semibold text-rock-900">Climb Types</h3>
+            <CardTitle>Climb Types</CardTitle>
           </CardHeader>
           <CardBody>
-            {typeLoading ? (
-              <div className="h-[300px] flex items-center justify-center">
-                <PageSpinner />
-              </div>
+            {typeError ? (
+              <ErrorState compact onRetry={refetchTypes} />
+            ) : typeLoading ? (
+              <InlineSpinner height={CHART_HEIGHT} />
             ) : (
-              <ClimbTypeChart data={typeData} />
+              <ClimbTypeChart data={typeData} height={CHART_HEIGHT} />
             )}
           </CardBody>
         </Card>
@@ -106,22 +132,25 @@ export default function StatsPage() {
 
       <Card>
         <CardHeader>
-          <h3 className="font-semibold text-rock-900">Grade Distribution</h3>
+          <CardTitle>Grade Distribution</CardTitle>
         </CardHeader>
         <CardBody>
-          {gradeLoading ? (
-            <div className="h-[300px] flex items-center justify-center">
-              <PageSpinner />
-            </div>
+          {gradeError ? (
+            <ErrorState compact onRetry={refetchGrades} />
+          ) : gradeLoading ? (
+            <InlineSpinner height={120} />
+          ) : gradeData.length === 0 ? (
+            <ChartEmpty height={120} message="Log a send to see your grade spread" />
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+            <div className="grid grid-cols-3 min-[400px]:grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2 sm:gap-3">
               {gradeData.map((item) => (
                 <div
                   key={item.grade}
-                  className="text-center p-3 bg-rock-50 rounded-lg"
+                  className="flex flex-col items-center gap-1.5 p-2 sm:p-3 bg-rock-50 rounded-lg"
                 >
-                  <div className="text-lg font-bold text-rock-900">{item.count}</div>
-                  <div className="text-xs text-rock-500">{item.grade}</div>
+                  <GradeBadge grade={item.grade} size="sm" system={getGradeBadgeSystem(null)} />
+                  <div className="text-lg font-bold text-rock-900 leading-none">{item.count}</div>
+                  <div className="text-xs text-rock-500">{item.count === 1 ? 'send' : 'sends'}</div>
                 </div>
               ))}
             </div>

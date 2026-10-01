@@ -8,12 +8,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
         name: 'ClimbJournal',
         short_name: 'ClimbJournal',
         description: 'Track your climbing progress, log ascents, and analyze your performance',
-        theme_color: '#3b82f6',
+        theme_color: '#3182CE',
         background_color: '#f8fafc',
         display: 'standalone',
         orientation: 'portrait',

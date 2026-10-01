@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   OverviewStats,
   TimelineData,
@@ -37,17 +37,21 @@ export function useTimelineStats(params?: TimelineParams) {
   const [data, setData] = useState<TimelineData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const requestIdRef = useRef(0)
 
   const fetchData = useCallback(async () => {
+    const requestId = ++requestIdRef.current
     try {
       setIsLoading(true)
       setError(null)
       const result = await statsApi.getTimeline(params)
+      if (requestId !== requestIdRef.current) return
       setData(result)
     } catch (err) {
+      if (requestId !== requestIdRef.current) return
       setError(err as Error)
     } finally {
-      setIsLoading(false)
+      if (requestId === requestIdRef.current) setIsLoading(false)
     }
   }, [params?.period, params?.groupBy])
 

@@ -1,58 +1,52 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { climbsApi } from '@/api/climbs.api'
 import { friendshipsApi } from '@/api/friendships.api'
+import { getErrorMessage } from '@/api/client'
 import { FriendClimb, Friend } from '@/types/models'
 import { PaginatedResponse } from '@/types/api'
-import { Card, CardBody } from '@/components/ui/Card'
-import GradeBadge from '@/components/routes/GradeBadge'
-import ClimbTypeBadge from '@/components/climbs/ClimbTypeBadge'
-import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
-import Select from '@/components/ui/Select'
+import ClimbCard from '@/components/climbs/ClimbCard'
+import ClimbFilters, { ClimbFilterValues } from '@/components/climbs/ClimbFilters'
+import Button, { LinkButton } from '@/components/ui/Button'
+import Avatar from '@/components/ui/Avatar'
+import Pagination from '@/components/ui/Pagination'
+import PageHeader from '@/components/ui/PageHeader'
+import EmptyState, { ErrorState } from '@/components/ui/EmptyState'
+import { Card } from '@/components/ui/Card'
 import { PageSpinner } from '@/components/ui/Spinner'
-import { formatDate, formatPoints } from '@/utils/formatters'
-import { useGradingSystem } from '@/hooks/useGradingSystem'
-import { ChevronLeft, ChevronRight, ArrowLeft, Activity, Star } from 'lucide-react'
+import { Activity, SearchX, UserPlus } from 'lucide-react'
 
-const CLIMB_TYPE_OPTIONS = [
-  { value: '', label: 'All Types' },
-  { value: 'OS', label: 'On-Sight' },
-  { value: 'FLASH', label: 'Flash' },
-  { value: 'RP', label: 'Redpoint' },
-  { value: 'PP', label: 'Pinkpoint' },
-  { value: 'TOPROPE', label: 'Top Rope' },
-  { value: 'AUTOBELAY', label: 'Auto Belay' },
-  { value: 'TRY', label: 'Attempt' },
-]
+const EMPTY_FILTERS: ClimbFilterValues = { climbType: '', from: '', to: '' }
 
 export default function FriendClimbsPage() {
   const { userId } = useParams<{ userId?: string }>()
-  const { getGradeBadgeSystem } = useGradingSystem()
 
-  const [filters, setFilters] = useState({
-    climbType: '',
-    from: '',
-    to: '',
-    page: 1,
-    limit: 20,
-  })
+  const [filters, setFilters] = useState({ ...EMPTY_FILTERS, page: 1, limit: 20 })
   const [data, setData] = useState<PaginatedResponse<FriendClimb> | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [friend, setFriend] = useState<Friend | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [friends, setFriends] = useState<Friend[] | null>(null)
+  const requestIdRef = useRef(0)
+
+  // Reset filters and results when switching between friends.
+  useEffect(() => {
+    setFilters({ ...EMPTY_FILTERS, page: 1, limit: 20 })
+    setData(null)
+  }, [userId])
 
   const fetchClimbs = useCallback(async () => {
+    const requestId = ++requestIdRef.current
     try {
       setIsLoading(true)
-      const response = await climbsApi.getFriendClimbs({
-        ...filters,
-        userId,
-      })
+      setError(null)
+      const response = await climbsApi.getFriendClimbs({ ...filters, userId })
+      if (requestId !== requestIdRef.current) return
       setData(response)
-    } catch {
-      // handled by empty state
+    } catch (err) {
+      if (requestId !== requestIdRef.current) return
+      setError(getErrorMessage(err, "We couldn't load these climbs."))
     } finally {
-      setIsLoading(false)
+      if (requestId === requestIdRef.current) setIsLoading(false)
     }
   }, [userId, filters])
 
@@ -61,18 +55,11 @@ export default function FriendClimbsPage() {
   }, [fetchClimbs])
 
   useEffect(() => {
-    if (userId) {
-      friendshipsApi
-        .getFriends()
-        .then((friends) => {
-          const found = friends.find((f) => f.id === userId)
-          if (found) setFriend(found)
-        })
-        .catch(() => {
-          // Header falls back to the generic title
-        })
-    }
-  }, [userId])
+    friendshipsApi
+      .getFriends()
+      .then(setFriends)
+      .catch(() => setFriends([]))
+  }, [])
 
   const climbs = data?.data ?? []
   const page = data?.page ?? 1
@@ -88,173 +75,106 @@ export default function FriendClimbsPage() {
     }
   }, [isLoading, totalPages, filters.page])
 
-  if (isLoading && climbs.length === 0) {
+  if (isLoading && !data && !error) {
     return <PageSpinner />
   }
 
-  const title = friend
-    ? `${friend.displayName}'s Climbs`
-    : 'Friend Activity'
+  const friend = userId ? friends?.find((f) => f.id === userId) : undefined
+  const title = userId ? (friend ? `${friend.displayName}'s climbs` : 'Friend climbs') : 'Friend activity'
+  const isFiltered = !!(filters.climbType || filters.from || filters.to)
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            to={userId ? '/friends' : '/friends/activity'}
-            className="p-2 rounded-lg text-rock-600 hover:bg-rock-100"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-rock-900">{title}</h1>
-            <p className="text-rock-600">
-              {userId ? 'View their climbing progress' : 'See what your friends have been climbing'}
-            </p>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-4 sm:space-y-6">
+      <PageHeader
+        backTo={userId ? '/friends/activity' : '/friends'}
+        backLabel={userId ? 'Back to friend activity' : 'Back to friends'}
+        title={title}
+        subtitle={userId ? 'Their recent climbing progress' : 'See what your friends have been climbing'}
+      />
 
-      {!userId && (
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          <Link to="/friends/activity">
-            <Button variant="primary" size="sm">All Friends</Button>
-          </Link>
-        </div>
+      {friends && friends.length > 0 && (
+        <nav aria-label="Filter by friend" className="-mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto">
+          <ul className="flex gap-2 pb-1 min-w-max">
+            <li>
+              <Link
+                to="/friends/activity"
+                aria-current={!userId ? 'page' : undefined}
+                className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                  !userId ? 'bg-carabiner text-white border-carabiner' : 'bg-white text-rock-700 border-rock-300 hover:border-carabiner'
+                }`}
+              >
+                All friends
+              </Link>
+            </li>
+            {friends.map((f) => {
+              const active = f.id === userId
+              return (
+                <li key={f.id}>
+                  <Link
+                    to={`/friends/climbs/${f.id}`}
+                    aria-current={active ? 'page' : undefined}
+                    className={`inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full text-sm font-medium border transition-colors ${
+                      active ? 'bg-carabiner text-white border-carabiner' : 'bg-white text-rock-700 border-rock-300 hover:border-carabiner'
+                    }`}
+                  >
+                    <Avatar src={f.profilePicture} name={f.displayName} size="sm" className="!w-6 !h-6 !text-[10px]" />
+                    <span className="max-w-[10rem] truncate">{f.displayName}</span>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        <Select
-          value={filters.climbType}
-          onChange={(e) => setFilters({ ...filters, climbType: e.target.value, page: 1 })}
-          options={CLIMB_TYPE_OPTIONS}
-          className="sm:w-40"
-        />
-        <Input
-          type="date"
-          value={filters.from}
-          onChange={(e) => setFilters({ ...filters, from: e.target.value, page: 1 })}
-          placeholder="From"
-          className="sm:w-40"
-        />
-        <Input
-          type="date"
-          value={filters.to}
-          onChange={(e) => setFilters({ ...filters, to: e.target.value, page: 1 })}
-          placeholder="To"
-          className="sm:w-40"
-        />
-      </div>
+      <ClimbFilters
+        values={{ climbType: filters.climbType, from: filters.from, to: filters.to }}
+        onChange={(values) => setFilters((f) => ({ ...f, ...values, page: 1 }))}
+      />
 
-      {climbs.length > 0 ? (
-        <>
-          <div className="space-y-4">
-            {climbs.map((climb) => (
-              <Card key={climb.id} className="hover:shadow-md transition-shadow">
-                <CardBody>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      {climb.route && (
-                        <GradeBadge
-                          grade={climb.route.difficultyFrench}
-                          size="lg"
-                          system={getGradeBadgeSystem(climb.route?.location)}
-                        />
-                      )}
-                      <div>
-                        <h3 className="font-semibold text-rock-900">{climb.route?.name}</h3>
-                        <p className="text-sm text-rock-500">
-                          {climb.route?.location?.name} - {formatDate(climb.date)}
-                        </p>
-                        {climb.user && (
-                          <Link
-                            to={`/friends/climbs/${climb.user.id}`}
-                            className="text-xs text-carabiner hover:underline"
-                          >
-                            {climb.user.displayName}
-                          </Link>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold text-lg text-send">
-                        +{formatPoints(climb.points)}
-                      </div>
-                      <div className="text-xs text-rock-500">points</div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex items-center gap-3 flex-wrap">
-                    <ClimbTypeBadge type={climb.climbType} />
-
-                    {climb.personalRating && (
-                      <div className="flex items-center gap-0.5">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-4 h-4 ${
-                              i < climb.personalRating!
-                                ? 'text-yellow-500 fill-yellow-500'
-                                : 'text-rock-300'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    )}
-
-                    {climb.attemptCount > 1 && (
-                      <span className="text-sm text-rock-500">
-                        {climb.attemptCount} attempts
-                      </span>
-                    )}
-                  </div>
-
-                  {climb.comments && (
-                    <p className="mt-3 text-sm text-rock-600 italic">
-                      "{climb.comments}"
-                    </p>
-                  )}
-                </CardBody>
-              </Card>
-            ))}
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setFilters({ ...filters, page: page - 1 })}
-                disabled={page === 1}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <span className="text-sm text-rock-600">
-                Page {page} of {totalPages}
-              </span>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setFilters({ ...filters, page: page + 1 })}
-                disabled={page === totalPages}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="text-center py-12">
-          <Activity className="w-12 h-12 text-rock-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-rock-900 mb-2">No climbs found</h3>
-          <p className="text-rock-500">
-            {filters.climbType || filters.from || filters.to
-              ? 'Try adjusting your filters'
-              : userId
-                ? "This friend hasn't logged any climbs yet"
-                : 'Your friends haven\'t logged any climbs yet'}
-          </p>
+      {error ? (
+        <Card><ErrorState message={error} onRetry={fetchClimbs} /></Card>
+      ) : climbs.length > 0 ? (
+        <div className={`space-y-3 transition-opacity ${isLoading ? 'opacity-60' : ''}`} aria-busy={isLoading}>
+          {climbs.map((climb) => (
+            <ClimbCard key={climb.id} climb={climb} user={userId ? undefined : climb.user} />
+          ))}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={(p) => setFilters((f) => ({ ...f, page: p }))}
+          />
         </div>
+      ) : isFiltered ? (
+        <Card>
+          <EmptyState
+            icon={SearchX}
+            title="No climbs match"
+            message="Try a different type or date range."
+            action={
+              <Button variant="secondary" onClick={() => setFilters((f) => ({ ...f, ...EMPTY_FILTERS, page: 1 }))}>
+                Clear filters
+              </Button>
+            }
+          />
+        </Card>
+      ) : friends && friends.length === 0 && !userId ? (
+        <Card>
+          <EmptyState
+            icon={UserPlus}
+            title="No friends yet"
+            message="Add friends to follow their climbing here."
+            action={<LinkButton to="/friends">Find friends</LinkButton>}
+          />
+        </Card>
+      ) : (
+        <Card>
+          <EmptyState
+            icon={Activity}
+            title="No climbs yet"
+            message={userId ? "This friend hasn't logged any climbs yet." : "Your friends haven't logged any climbs yet."}
+          />
+        </Card>
       )}
     </div>
   )
