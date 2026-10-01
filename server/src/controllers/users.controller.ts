@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import { prisma } from '../models/prisma.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
 import { UpdateProfileInput, ChangePasswordInput } from '../schemas/auth.schema.js'
-import { ConflictError, UnauthorizedError, NotFoundError } from '../middleware/error.middleware.js'
+import { ConflictError, BadRequestError, NotFoundError } from '../middleware/error.middleware.js'
 import { refreshCookieOptions } from './auth.controller.js'
 import crypto from 'crypto'
 
@@ -101,7 +101,9 @@ export async function changePassword(req: Request, res: Response, next: NextFunc
 
     const isValidPassword = await verifyPassword(currentPassword, user.passwordHash)
     if (!isValidPassword) {
-      throw new UnauthorizedError('Current password is incorrect')
+      // 400, not 401: a 401 would make the client try a token refresh and
+      // could log the user out over a typo.
+      throw new BadRequestError('Current password is incorrect')
     }
 
     const newPasswordHash = await hashPassword(newPassword)

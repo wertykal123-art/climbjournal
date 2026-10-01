@@ -40,7 +40,26 @@ export async function searchUsers(req: Request, res: Response, next: NextFunctio
       take: 20,
     })
 
-    res.json(users)
+    // Tag each result with the caller's relationship so the client can show
+    // "Friends" / "Request sent" instead of an Add button that would 409.
+    const friendships = await prisma.friendship.findMany({
+      where: {
+        OR: [
+          { requesterId: userId, addresseeId: { in: users.map((u) => u.id) } },
+          { addresseeId: userId, requesterId: { in: users.map((u) => u.id) } },
+        ],
+      },
+      select: { requesterId: true, addresseeId: true, status: true },
+    })
+
+    const relationshipFor = (otherId: string): 'FRIENDS' | 'OUTGOING' | 'INCOMING' | 'NONE' => {
+      const f = friendships.find((fr) => fr.requesterId === otherId || fr.addresseeId === otherId)
+      if (!f) return 'NONE'
+      if (f.status === 'ACCEPTED') return 'FRIENDS'
+      return f.requesterId === userId ? 'OUTGOING' : 'INCOMING'
+    }
+
+    res.json(users.map((u) => ({ ...u, relationship: relationshipFor(u.id) })))
   } catch (error) {
     next(error)
   }
