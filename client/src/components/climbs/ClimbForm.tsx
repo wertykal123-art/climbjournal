@@ -7,6 +7,7 @@ import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import Textarea from '@/components/ui/Textarea'
 import EmptyState from '@/components/ui/EmptyState'
+import { InlineSpinner } from '@/components/ui/Spinner'
 import { Star, Route as RouteIcon, Plus } from 'lucide-react'
 import { formatDateISO } from '@/utils/formatters'
 import { calculatePoints } from '@/utils/points'
@@ -20,6 +21,8 @@ interface ClimbFormProps {
   defaultRouteId?: string
   onSubmit: (data: CreateClimbRequest) => Promise<void>
   onCancel: () => void
+  /** While true and no routes are known yet, show a spinner instead of the empty state. */
+  routesLoading?: boolean
 }
 
 const TYPE_HINTS: Partial<Record<ClimbType, string>> = {
@@ -30,7 +33,7 @@ const TYPE_HINTS: Partial<Record<ClimbType, string>> = {
   TRY: "Didn't send (yet)",
 }
 
-export default function ClimbForm({ climb, routes, defaultRouteId, onSubmit, onCancel }: ClimbFormProps) {
+export default function ClimbForm({ climb, routes, defaultRouteId, onSubmit, onCancel, routesLoading }: ClimbFormProps) {
   // The modal unmounts this form when closed, so props are read once on
   // mount. Re-syncing on every new `routes` array wiped in-progress edits.
   const [routeId, setRouteId] = useState(() => climb?.routeId ?? defaultRouteId ?? routes[0]?.id ?? '')
@@ -103,6 +106,10 @@ export default function ClimbForm({ climb, routes, defaultRouteId, onSubmit, onC
   const estimatedPoints = selectedRoute
     ? calculatePoints(selectedRoute.difficultyFrench, climbType)
     : 0
+
+  if (!climb && routes.length === 0 && routesLoading) {
+    return <InlineSpinner height={160} />
+  }
 
   if (!climb && routes.length === 0) {
     return (

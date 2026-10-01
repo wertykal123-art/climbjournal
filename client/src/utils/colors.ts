@@ -1,7 +1,7 @@
 import { ClimbType, StoneType } from '@/types/models'
 
 export function getGradeColor(grade: string): string {
-  const gradeNum = grade.replace(/[+\-]/g, '')
+  const gradeNum = grade.replace(/[+-]/g, '')
 
   if (gradeNum === '4' || gradeNum === '5a' || gradeNum === '5b') {
     return 'bg-green-500 text-white'
@@ -22,7 +22,7 @@ export function getGradeColor(grade: string): string {
 }
 
 export function getGradeColorHex(grade: string): string {
-  const gradeNum = grade.replace(/[+\-]/g, '')
+  const gradeNum = grade.replace(/[+-]/g, '')
 
   if (gradeNum === '4' || gradeNum === '5a' || gradeNum === '5b') {
     return '#22c55e' // green-500

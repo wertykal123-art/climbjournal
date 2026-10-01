@@ -1,99 +1,107 @@
-import { useState, useEffect, useRef } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { locationsApi } from '@/api/locations.api'
 import { routesApi } from '@/api/routes.api'
 import { climbsApi } from '@/api/climbs.api'
+import { getErrorMessage } from '@/api/client'
 import { Location, Route } from '@/types/models'
-import { CreateRouteRequest, CreateClimbRequest, UpdateRouteRequest } from '@/types/api'
+import { CreateRouteRequest, CreateClimbRequest, UpdateRouteRequest, CreateLocationRequest, UpdateLocationRequest } from '@/types/api'
 import RouteCard from '@/components/routes/RouteCard'
 import RouteForm from '@/components/routes/RouteForm'
+import GradeBadge from '@/components/routes/GradeBadge'
 import ClimbForm from '@/components/climbs/ClimbForm'
+import LocationForm from '@/components/locations/LocationForm'
 import Modal from '@/components/ui/Modal'
-import Button from '@/components/ui/Button'
-import { Card, CardBody, CardHeader } from '@/components/ui/Card'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import DropdownMenu from '@/components/ui/DropdownMenu'
+import Button, { LinkButton } from '@/components/ui/Button'
+import PageHeader from '@/components/ui/PageHeader'
+import StatTile from '@/components/ui/StatTile'
+import Badge from '@/components/ui/Badge'
+import EmptyState, { ErrorState } from '@/components/ui/EmptyState'
+import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { showToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useFriends } from '@/hooks/useFriends'
+import { useGradingSystem } from '@/hooks/useGradingSystem'
 import {
-  ArrowLeft,
   Building2,
   Mountain,
   MapPin,
   Globe,
   Route as RouteIcon,
   Plus,
+  Pencil,
   Trash2,
   Calendar,
   TrendingUp,
   Flag,
   BarChart3,
-  MoreVertical,
 } from 'lucide-react'
 import { formatDate } from '@/utils/formatters'
+import { compareGrades, frenchToUIAA } from '@/utils/grades'
+import { getStoneTypeLabel } from '@/utils/colors'
 
 export default function LocationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
   const { isFriend } = useFriends()
+  const { getEffectiveSystem, getGradeBadgeSystem } = useGradingSystem()
 
   const [location, setLocation] = useState<Location | null>(null)
   const [routes, setRoutes] = useState<Route[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [showRouteModal, setShowRouteModal] = useState(false)
   const [editingRoute, setEditingRoute] = useState<Route | null>(null)
   const [deleteRouteConfirm, setDeleteRouteConfirm] = useState<Route | null>(null)
   const [loggingClimb, setLoggingClimb] = useState<Route | null>(null)
   const [showDeleteLocation, setShowDeleteLocation] = useState(false)
-  const [showMenu, setShowMenu] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const [isEditingLocation, setIsEditingLocation] = useState(false)
 
   const isOwner = user?.id === location?.userId
   const isFriendOfOwner = isFriend(location?.userId)
   const canEdit = isOwner || isFriendOfOwner
 
-  useEffect(() => {
-    if (id) {
-      loadData()
+  const loadData = useCallback(async () => {
+    if (!id) return
+    setIsLoading(true)
+    setLoadError(null)
+    try {
+      const [locationData, routesData] = await Promise.all([
+        locationsApi.getById(id),
+        routesApi.getByLocation(id),
+      ])
+      setLocation(locationData)
+      setRoutes(routesData)
+    } catch (err) {
+      setLoadError(getErrorMessage(err, "We couldn't load this location."))
+    } finally {
+      setIsLoading(false)
     }
   }, [id])
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowMenu(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    loadData()
+  }, [loadData])
 
-  const loadData = async () => {
-    setIsLoading(true)
-    try {
-      const [locationData, routesData] = await Promise.all([
-        locationsApi.getById(id!),
-        routesApi.getByLocation(id!),
-      ])
-      setLocation(locationData)
-      setRoutes(routesData)
-    } catch {
-      showToast('error', 'Failed to load location')
-      navigate('/locations')
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  // Memoized so the open forms don't see a "new" list on every render.
+  const locationAsList = useMemo(() => (location ? [location] : []), [location])
+  const loggingRoutes = useMemo(
+    () => (loggingClimb && location ? [{ ...loggingClimb, location }] : []),
+    [loggingClimb, location]
+  )
 
   const handleCreateRoute = async (data: CreateRouteRequest) => {
     try {
       const newRoute = await routesApi.create({ ...data, locationId: id! })
-      setRoutes([...routes, newRoute])
-      showToast('success', 'Route created successfully!')
+      setRoutes((prev) => [...prev, { ...newRoute, climbCount: 0 }])
+      showToast('success', 'Route created')
       setShowRouteModal(false)
-    } catch {
-      showToast('error', 'Failed to create route')
+    } catch (err) {
+      showToast('error', getErrorMessage(err, 'Failed to create route'))
     }
   }
 
@@ -101,15 +109,15 @@ export default function LocationDetailPage() {
     if (!editingRoute) return
     try {
       const updated = await routesApi.update(editingRoute.id, data as UpdateRouteRequest)
-      setRoutes(
+      setRoutes((prev) =>
         updated.locationId === id
-          ? routes.map((r) => (r.id === editingRoute.id ? { ...r, ...updated } : r))
-          : routes.filter((r) => r.id !== editingRoute.id)
+          ? prev.map((r) => (r.id === editingRoute.id ? { ...r, ...updated } : r))
+          : prev.filter((r) => r.id !== editingRoute.id)
       )
-      showToast('success', 'Route updated successfully!')
+      showToast('success', 'Route updated')
       setEditingRoute(null)
-    } catch {
-      showToast('error', 'Failed to update route')
+    } catch (err) {
+      showToast('error', getErrorMessage(err, 'Failed to update route'))
     }
   }
 
@@ -117,51 +125,75 @@ export default function LocationDetailPage() {
     if (!deleteRouteConfirm) return
     try {
       await routesApi.delete(deleteRouteConfirm.id)
-      setRoutes(routes.filter((r) => r.id !== deleteRouteConfirm.id))
-      showToast('success', 'Route deleted successfully!')
+      setRoutes((prev) => prev.filter((r) => r.id !== deleteRouteConfirm.id))
+      showToast('success', 'Route deleted')
       setDeleteRouteConfirm(null)
-    } catch {
-      showToast('error', 'Failed to delete route')
+    } catch (err) {
+      showToast('error', getErrorMessage(err, 'Failed to delete route'))
     }
   }
 
   const handleResetRoute = async (route: Route) => {
     try {
       const updated = await routesApi.update(route.id, { isActive: false })
-      setRoutes(routes.map((r) => (r.id === route.id ? { ...r, ...updated } : r)))
-      showToast('success', 'Route marked as reset')
-    } catch {
-      showToast('error', 'Failed to mark route as reset')
+      setRoutes((prev) => prev.map((r) => (r.id === route.id ? { ...r, ...updated } : r)))
+      showToast('success', `"${route.name}" marked as reset`)
+    } catch (err) {
+      showToast('error', getErrorMessage(err, 'Failed to mark route as reset'))
     }
   }
 
   const handleLogClimb = async (data: CreateClimbRequest) => {
     try {
       await climbsApi.create(data)
-      showToast('success', 'Climb logged successfully!')
+      showToast('success', 'Climb logged!')
+      // Bump the count locally rather than reloading the whole page.
+      setRoutes((prev) =>
+        prev.map((r) => (r.id === data.routeId ? { ...r, climbCount: (r.climbCount || 0) + 1 } : r))
+      )
       setLoggingClimb(null)
-      loadData() // Refresh to update climb counts
-    } catch {
-      showToast('error', 'Failed to log climb')
+    } catch (err) {
+      showToast('error', getErrorMessage(err, 'Failed to log climb'))
+    }
+  }
+
+  const handleUpdateLocation = async (data: CreateLocationRequest) => {
+    try {
+      const updated = await locationsApi.update(id!, data as UpdateLocationRequest)
+      setLocation((prev) => (prev ? { ...prev, ...updated } : updated))
+      showToast('success', 'Location updated')
+      setIsEditingLocation(false)
+    } catch (err) {
+      showToast('error', getErrorMessage(err, 'Failed to update location'))
     }
   }
 
   const handleDeleteLocation = async () => {
     try {
       await locationsApi.delete(id!)
-      showToast('success', 'Location deleted successfully!')
+      showToast('success', 'Location deleted')
       navigate('/locations')
-    } catch {
-      showToast('error', 'Failed to delete location')
+    } catch (err) {
+      showToast('error', getErrorMessage(err, 'Failed to delete location'))
     }
   }
 
-  if (isLoading) {
+  if (isLoading && !location) {
     return <PageSpinner />
   }
 
-  if (!location) {
-    return null
+  if (loadError || !location) {
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Location" backTo="/locations" backLabel="Back to locations" />
+        <Card>
+          <ErrorState message={loadError ?? undefined} onRetry={loadData} />
+          <div className="pb-8 -mt-4 flex justify-center">
+            <LinkButton to="/locations" variant="ghost" size="sm">Back to locations</LinkButton>
+          </div>
+        </Card>
+      </div>
+    )
   }
 
   // Reset routes go last; the stable sort keeps the server's name order
@@ -171,181 +203,93 @@ export default function LocationDetailPage() {
   )
 
   const Icon = location.type === 'GYM' ? Building2 : Mountain
+  const system = getEffectiveSystem(location)
+  const displayGrade = (grade: string) => (system === 'UIAA' ? frenchToUIAA(grade) : grade)
   const totalClimbs = routes.reduce((acc, r) => acc + (r.climbCount || 0), 0)
   const gradeDistribution = routes.reduce((acc, r) => {
-    const grade = r.difficultyFrench
-    acc[grade] = (acc[grade] || 0) + 1
+    acc[r.difficultyFrench] = (acc[r.difficultyFrench] || 0) + 1
     return acc
   }, {} as Record<string, number>)
   const hardestGrade = routes.length > 0
-    ? routes.reduce((hardest, r) => {
-        if (!hardest) return r.difficultyFrench
-        // Simple comparison - this could be improved with proper grade sorting
-        return r.difficultyFrench > hardest ? r.difficultyFrench : hardest
-      }, '')
+    ? routes.reduce((hardest, r) => (compareGrades(r.difficultyFrench, hardest) > 0 ? r.difficultyFrench : hardest), routes[0].difficultyFrench)
     : null
 
-  // Count stone types for crags
   const stoneTypeDistribution = location.type === 'CRAG'
     ? routes.reduce((acc, r) => {
-        if (r.stoneType) {
-          acc[r.stoneType] = (acc[r.stoneType] || 0) + 1
-        }
+        if (r.stoneType) acc[r.stoneType] = (acc[r.stoneType] || 0) + 1
         return acc
       }, {} as Record<string, number>)
     : null
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-4">
-          <Link
-            to="/locations"
-            className="p-2 rounded-lg text-rock-500 hover:text-rock-700 hover:bg-rock-100"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div className="flex items-center gap-4">
-            <div className={`p-3 rounded-xl ${location.type === 'GYM' ? 'bg-blue-100 text-carabiner' : 'bg-green-100 text-send'}`}>
-              <Icon className="w-8 h-8" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-rock-900">{location.name}</h1>
-                {location.isPublic && (
-                  <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-send text-xs rounded-full">
-                    <Globe className="w-3 h-3" />
-                    Public
-                  </span>
-                )}
-              </div>
-              <p className="text-rock-500">
-                {location.type === 'GYM' ? 'Indoor Gym' : 'Outdoor Crag'}
-                {location.country && ` • ${location.country}`}
-              </p>
-            </div>
+    <div className="space-y-4 sm:space-y-6">
+      <PageHeader
+        backTo="/locations"
+        backLabel="Back to locations"
+        leading={
+          <div className={`p-2.5 sm:p-3 rounded-xl ${location.type === 'GYM' ? 'bg-carabiner-light text-carabiner' : 'bg-send-light text-send'}`}>
+            <Icon className="w-6 h-6 sm:w-7 sm:h-7" aria-hidden="true" />
           </div>
-        </div>
-
-        {isOwner && (
-          <div className="relative" ref={menuRef}>
-            <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="p-2 rounded-lg text-rock-500 hover:text-rock-700 hover:bg-rock-100"
-              aria-label="Location actions"
-            >
-              <MoreVertical className="w-6 h-6" />
-            </button>
-            {showMenu && (
-              <div className="absolute right-0 mt-1 w-36 bg-white rounded-lg shadow-lg border border-rock-200 py-1 z-10">
-                <button
-                  onClick={() => {
-                    setShowMenu(false)
-                    setShowDeleteLocation(true)
-                  }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-fall hover:bg-rock-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete
-                </button>
-              </div>
+        }
+        title={location.name}
+        subtitle={
+          <span className="flex flex-wrap items-center gap-2">
+            <span>
+              {location.type === 'GYM' ? 'Indoor gym' : 'Outdoor crag'}
+              {location.country && ` · ${location.country}`}
+            </span>
+            {location.isPublic && (
+              <Badge variant="success">
+                <Globe className="w-3 h-3" aria-hidden="true" />
+                Public
+              </Badge>
             )}
-          </div>
-        )}
+          </span>
+        }
+        actions={
+          <>
+            {canEdit && (
+              <Button onClick={() => setShowRouteModal(true)}>
+                <Plus className="w-4 h-4" aria-hidden="true" />
+                Add route
+              </Button>
+            )}
+            <DropdownMenu
+              label="Location actions"
+              items={[
+                { label: 'Edit location', icon: Pencil, onSelect: () => setIsEditingLocation(true), hidden: !isOwner },
+                { label: 'Delete location', icon: Trash2, danger: true, onSelect: () => setShowDeleteLocation(true), hidden: !isOwner },
+              ]}
+            />
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <StatTile label="Routes" value={routes.length} icon={RouteIcon} />
+        <StatTile label="Total climbs" value={totalClimbs} icon={TrendingUp} iconClassName="bg-send-light text-send" />
+        <StatTile label="Hardest route" value={hardestGrade ? displayGrade(hardestGrade) : '—'} icon={Flag} iconClassName="bg-pump-light text-pump" />
+        <StatTile label="Grading" value={system === 'UIAA' ? 'UIAA' : 'French'} icon={BarChart3} iconClassName="bg-purple-50 text-purple-600" />
       </div>
 
-      {/* Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardBody className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-100">
-                <RouteIcon className="w-5 h-5 text-carabiner" />
-              </div>
-              <div>
-                <p className="text-xs text-rock-500">Routes</p>
-                <p className="text-xl font-bold text-rock-900">{routes.length}</p>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-100">
-                <TrendingUp className="w-5 h-5 text-send" />
-              </div>
-              <div>
-                <p className="text-xs text-rock-500">Total Climbs</p>
-                <p className="text-xl font-bold text-rock-900">{totalClimbs}</p>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-orange-100">
-                <Flag className="w-5 h-5 text-pump" />
-              </div>
-              <div>
-                <p className="text-xs text-rock-500">Hardest Route</p>
-                <p className="text-xl font-bold text-rock-900">{hardestGrade || '-'}</p>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple-100">
-                <BarChart3 className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-xs text-rock-500">Grading System</p>
-                <p className="text-sm font-semibold text-rock-900">
-                  {location.defaultGradingSystem === 'UIAA' ? 'UIAA' : 'French'}
-                </p>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* Details Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left - Details */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
         <Card className="lg:col-span-1">
           <CardHeader>
-            <h3 className="font-semibold text-rock-900">Details</h3>
+            <CardTitle>Details</CardTitle>
           </CardHeader>
           <CardBody className="space-y-4">
             {location.address && (
-              <div className="flex items-start gap-3">
-                <MapPin className="w-4 h-4 text-rock-400 mt-0.5" />
-                <div>
+              <div className="flex items-start gap-3 min-w-0">
+                <MapPin className="w-4 h-4 text-rock-400 mt-0.5 shrink-0" aria-hidden="true" />
+                <div className="min-w-0">
                   <p className="text-xs text-rock-500">Address</p>
-                  <p className="text-sm text-rock-900">{location.address}</p>
-                </div>
-              </div>
-            )}
-
-            {location.country && (
-              <div className="flex items-start gap-3">
-                <Globe className="w-4 h-4 text-rock-400 mt-0.5" />
-                <div>
-                  <p className="text-xs text-rock-500">Country</p>
-                  <p className="text-sm text-rock-900">{location.country}</p>
+                  <p className="text-sm text-rock-900 break-words">{location.address}</p>
                 </div>
               </div>
             )}
 
             <div className="flex items-start gap-3">
-              <Calendar className="w-4 h-4 text-rock-400 mt-0.5" />
+              <Calendar className="w-4 h-4 text-rock-400 mt-0.5 shrink-0" aria-hidden="true" />
               <div>
                 <p className="text-xs text-rock-500">Added</p>
                 <p className="text-sm text-rock-900">{formatDate(location.createdAt)}</p>
@@ -355,41 +299,34 @@ export default function LocationDetailPage() {
             {location.description && (
               <div className="pt-4 border-t border-rock-200">
                 <p className="text-xs text-rock-500 mb-1">Description</p>
-                <p className="text-sm text-rock-700">{location.description}</p>
+                <p className="text-sm text-rock-700 whitespace-pre-wrap break-words">{location.description}</p>
               </div>
             )}
 
-            {/* Grade Distribution */}
             {Object.keys(gradeDistribution).length > 0 && (
               <div className="pt-4 border-t border-rock-200">
-                <p className="text-xs text-rock-500 mb-2">Grade Distribution</p>
+                <p className="text-xs text-rock-500 mb-2">Routes by grade</p>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(gradeDistribution)
-                    .sort(([a], [b]) => a.localeCompare(b))
+                    .sort(([a], [b]) => compareGrades(a, b))
                     .map(([grade, count]) => (
-                      <span
-                        key={grade}
-                        className="px-2 py-1 bg-rock-100 rounded text-xs text-rock-700"
-                      >
-                        {grade}: {count}
+                      <span key={grade} className="inline-flex items-center gap-1.5">
+                        <GradeBadge grade={grade} size="sm" system={getGradeBadgeSystem(location)} />
+                        <span className="text-xs text-rock-600">×{count}</span>
                       </span>
                     ))}
                 </div>
               </div>
             )}
 
-            {/* Stone Type Distribution for Crags */}
             {stoneTypeDistribution && Object.keys(stoneTypeDistribution).length > 0 && (
               <div className="pt-4 border-t border-rock-200">
-                <p className="text-xs text-rock-500 mb-2">Rock Types</p>
+                <p className="text-xs text-rock-500 mb-2">Rock types</p>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(stoneTypeDistribution).map(([type, count]) => (
-                    <span
-                      key={type}
-                      className="px-2 py-1 bg-amber-100 text-amber-800 rounded text-xs flex items-center gap-1"
-                    >
-                      <Mountain className="w-3 h-3" />
-                      {type.charAt(0) + type.slice(1).toLowerCase()}: {count}
+                    <span key={type} className="px-2 py-1 bg-amber-100 text-amber-800 rounded text-xs flex items-center gap-1">
+                      <Mountain className="w-3 h-3" aria-hidden="true" />
+                      {getStoneTypeLabel(type)}: {count}
                     </span>
                   ))}
                 </div>
@@ -398,30 +335,19 @@ export default function LocationDetailPage() {
           </CardBody>
         </Card>
 
-        {/* Right - Routes */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-rock-900">
-              Routes ({routes.length})
-            </h2>
-            {canEdit && (
-              <Button onClick={() => setShowRouteModal(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Route
-              </Button>
-            )}
-          </div>
+        <section className="lg:col-span-2 space-y-3">
+          <h2 className="text-lg font-semibold text-rock-900">
+            Routes <span className="text-rock-400 font-normal">({routes.length})</span>
+          </h2>
 
-          {routes.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {sortedRoutes.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               {sortedRoutes.map((route) => (
                 <RouteCard
                   key={route.id}
                   route={{ ...route, location }}
                   onEdit={canEdit ? setEditingRoute : undefined}
-                  onDelete={
-                    isOwner || route.userId === user?.id ? setDeleteRouteConfirm : undefined
-                  }
+                  onDelete={isOwner || route.userId === user?.id ? setDeleteRouteConfirm : undefined}
                   onLogClimb={setLoggingClimb}
                   onReset={canEdit ? handleResetRoute : undefined}
                   canEdit={canEdit}
@@ -430,102 +356,83 @@ export default function LocationDetailPage() {
             </div>
           ) : (
             <Card>
-              <CardBody className="text-center py-12">
-                <RouteIcon className="w-12 h-12 text-rock-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-rock-900 mb-2">No routes yet</h3>
-                <p className="text-rock-500 mb-4">
-                  {canEdit ? 'Add your first route to this location.' : 'No routes have been added yet.'}
-                </p>
-                {canEdit && (
-                  <Button onClick={() => setShowRouteModal(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Route
-                  </Button>
-                )}
-              </CardBody>
+              <EmptyState
+                compact
+                icon={RouteIcon}
+                title="No routes yet"
+                message={canEdit ? 'Add the first route at this location.' : 'No routes have been added here yet.'}
+                action={
+                  canEdit && (
+                    <Button onClick={() => setShowRouteModal(true)}>
+                      <Plus className="w-4 h-4" aria-hidden="true" />
+                      Add route
+                    </Button>
+                  )
+                }
+              />
             </Card>
           )}
-        </div>
+        </section>
       </div>
 
-      {/* Modals */}
-      <Modal
-        isOpen={showRouteModal}
-        onClose={() => setShowRouteModal(false)}
-        title="Add Route"
-        size="lg"
-      >
+      <Modal isOpen={showRouteModal} onClose={() => setShowRouteModal(false)} title="Add Route" size="lg">
         <RouteForm
-          locations={[location]}
+          locations={locationAsList}
           defaultLocationId={location.id}
           onSubmit={handleCreateRoute}
           onCancel={() => setShowRouteModal(false)}
         />
       </Modal>
 
-      <Modal
-        isOpen={!!editingRoute}
-        onClose={() => setEditingRoute(null)}
-        title="Edit Route"
-        size="lg"
-      >
+      <Modal isOpen={!!editingRoute} onClose={() => setEditingRoute(null)} title="Edit Route" size="lg">
         <RouteForm
           route={editingRoute}
-          locations={[location]}
+          locations={locationAsList}
           onSubmit={handleUpdateRoute}
           onCancel={() => setEditingRoute(null)}
         />
       </Modal>
 
-      <Modal
-        isOpen={!!loggingClimb}
-        onClose={() => setLoggingClimb(null)}
-        title="Log Climb"
-        size="lg"
-      >
+      <Modal isOpen={!!loggingClimb} onClose={() => setLoggingClimb(null)} title="Log Climb" size="lg">
         <ClimbForm
-          routes={loggingClimb ? [{ ...loggingClimb, location }] : []}
+          routes={loggingRoutes}
           defaultRouteId={loggingClimb?.id}
           onSubmit={handleLogClimb}
           onCancel={() => setLoggingClimb(null)}
         />
       </Modal>
 
-      <Modal
-        isOpen={!!deleteRouteConfirm}
-        onClose={() => setDeleteRouteConfirm(null)}
-        title="Delete Route"
-      >
-        <p className="text-rock-600 mb-4">
-          Are you sure you want to delete "{deleteRouteConfirm?.name}"? This will also delete all climbs on this route.
-        </p>
-        <div className="flex gap-3 justify-end">
-          <Button variant="secondary" onClick={() => setDeleteRouteConfirm(null)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={handleDeleteRoute}>
-            Delete
-          </Button>
-        </div>
+      <Modal isOpen={isEditingLocation} onClose={() => setIsEditingLocation(false)} title="Edit Location" size="lg">
+        <LocationForm
+          location={location}
+          onSubmit={handleUpdateLocation}
+          onCancel={() => setIsEditingLocation(false)}
+        />
       </Modal>
 
-      <Modal
+      <ConfirmDialog
+        isOpen={!!deleteRouteConfirm}
+        onClose={() => setDeleteRouteConfirm(null)}
+        onConfirm={handleDeleteRoute}
+        title="Delete route?"
+        message={
+          <>
+            <strong>{deleteRouteConfirm?.name}</strong> and every climb logged on it will be permanently deleted.
+          </>
+        }
+      />
+
+      <ConfirmDialog
         isOpen={showDeleteLocation}
         onClose={() => setShowDeleteLocation(false)}
-        title="Delete Location"
-      >
-        <p className="text-rock-600 mb-4">
-          Are you sure you want to delete "{location.name}"? This will also delete all {routes.length} routes and their climbs.
-        </p>
-        <div className="flex gap-3 justify-end">
-          <Button variant="secondary" onClick={() => setShowDeleteLocation(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={handleDeleteLocation}>
-            Delete
-          </Button>
-        </div>
-      </Modal>
+        onConfirm={handleDeleteLocation}
+        title="Delete location?"
+        message={
+          <>
+            <strong>{location.name}</strong>, its {routes.length} {routes.length === 1 ? 'route' : 'routes'}, and all their climbs will be permanently deleted.
+          </>
+        }
+      />
     </div>
   )
 }

@@ -6,6 +6,8 @@ import Input from '@/components/ui/Input'
 import { Card, CardBody } from '@/components/ui/Card'
 import { showToast } from '@/components/ui/Toast'
 import { AxiosError } from 'axios'
+import PasswordRules from './PasswordRules'
+import { isStrongPassword } from '@/utils/validation'
 
 export default function RegisterForm() {
   const [email, setEmail] = useState('')
@@ -22,6 +24,11 @@ export default function RegisterForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrors({})
+
+    if (!isStrongPassword(password)) {
+      setErrors({ password: "Password doesn't meet the requirements below" })
+      return
+    }
 
     if (password !== confirmPassword) {
       setErrors({ confirmPassword: 'Passwords do not match' })
@@ -53,9 +60,9 @@ export default function RegisterForm() {
   return (
     <Card>
       <CardBody>
-        <h2 className="text-2xl font-bold text-rock-900 mb-6 text-center">
-          Create Account
-        </h2>
+        <h1 className="text-xl sm:text-2xl font-bold text-rock-900 mb-6 text-center">
+          Create your account
+        </h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             label="Email"
@@ -74,7 +81,8 @@ export default function RegisterForm() {
             error={errors.username}
             required
             autoComplete="username"
-            placeholder="No spaces, letters, numbers, underscores"
+            maxLength={30}
+            hint="3–30 letters, numbers, or underscores"
           />
           <Input
             label="Display Name"
@@ -93,8 +101,8 @@ export default function RegisterForm() {
             error={errors.password}
             required
             autoComplete="new-password"
-            placeholder="Min 8 chars, uppercase, lowercase, number"
           />
+          {password && <PasswordRules password={password} />}
           <Input
             label="Confirm Password"
             type="password"
@@ -105,7 +113,7 @@ export default function RegisterForm() {
             autoComplete="new-password"
           />
           <Button type="submit" className="w-full" isLoading={isLoading}>
-            Create Account
+            Create account
           </Button>
         </form>
         <p className="mt-4 text-center text-sm text-rock-600">

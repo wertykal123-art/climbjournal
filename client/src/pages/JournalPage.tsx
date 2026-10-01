@@ -1,28 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useClimbs } from '@/hooks/useClimbs'
 import { useRoutes } from '@/hooks/useRoutes'
 import ClimbCard from '@/components/climbs/ClimbCard'
 import ClimbForm from '@/components/climbs/ClimbForm'
+import ClimbFilters, { ClimbFilterValues } from '@/components/climbs/ClimbFilters'
 import QuickAddFAB from '@/components/climbs/QuickAddFAB'
 import Modal from '@/components/ui/Modal'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
-import Select from '@/components/ui/Select'
+import Pagination from '@/components/ui/Pagination'
+import PageHeader from '@/components/ui/PageHeader'
+import EmptyState, { ErrorState } from '@/components/ui/EmptyState'
+import { Card } from '@/components/ui/Card'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { showToast } from '@/components/ui/Toast'
+import { getErrorMessage } from '@/api/client'
 import { Climb } from '@/types/models'
-import { BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'
-
-const CLIMB_TYPE_OPTIONS = [
-  { value: '', label: 'All Types' },
-  { value: 'OS', label: 'On-Sight' },
-  { value: 'FLASH', label: 'Flash' },
-  { value: 'RP', label: 'Redpoint' },
-  { value: 'PP', label: 'Pinkpoint' },
-  { value: 'TOPROPE', label: 'Top Rope' },
-  { value: 'AUTOBELAY', label: 'Auto Belay' },
-  { value: 'TRY', label: 'Attempt' },
-]
+import { BookOpen, Plus, SearchX } from 'lucide-react'
 
 export default function JournalPage() {
   const [filters, setFilters] = useState({
@@ -33,8 +27,9 @@ export default function JournalPage() {
     limit: 20,
   })
 
-  const { climbs, page, totalPages, isLoading, createClimb, updateClimb, deleteClimb } = useClimbs(filters)
-  const { routes } = useRoutes()
+  const { climbs, total, page, totalPages, isLoading, isInitialLoading, error, refetch, createClimb, updateClimb, deleteClimb } = useClimbs(filters)
+  const { routes, isInitialLoading: routesLoading } = useRoutes()
+  const activeRoutes = useMemo(() => routes.filter((r) => r.isActive !== false), [routes])
 
   const [showModal, setShowModal] = useState(false)
   const [editingClimb, setEditingClimb] = useState<Climb | null>(null)
@@ -53,10 +48,10 @@ export default function JournalPage() {
   const handleCreateClimb = async (data: Parameters<typeof createClimb>[0]) => {
     try {
       await createClimb(data)
-      showToast('success', 'Climb logged successfully!')
+      showToast('success', 'Climb logged!')
       setShowModal(false)
-    } catch {
-      showToast('error', 'Failed to log climb')
+    } catch (err) {
+      showToast('error', getErrorMessage(err, 'Failed to log climb'))
     }
   }
 
@@ -64,10 +59,10 @@ export default function JournalPage() {
     if (!editingClimb) return
     try {
       await updateClimb(editingClimb.id, data)
-      showToast('success', 'Climb updated successfully!')
+      showToast('success', 'Climb updated')
       setEditingClimb(null)
-    } catch {
-      showToast('error', 'Failed to update climb')
+    } catch (err) {
+      showToast('error', getErrorMessage(err, 'Failed to update climb'))
     }
   }
 
@@ -75,104 +70,88 @@ export default function JournalPage() {
     if (!deleteConfirm) return
     try {
       await deleteClimb(deleteConfirm.id)
-      showToast('success', 'Climb deleted successfully!')
+      showToast('success', 'Climb deleted')
       setDeleteConfirm(null)
-    } catch {
-      showToast('error', 'Failed to delete climb')
+    } catch (err) {
+      showToast('error', getErrorMessage(err, 'Failed to delete climb'))
     }
   }
 
-  if (isLoading && climbs.length === 0) {
+  const handleFilterChange = (values: ClimbFilterValues) => {
+    setFilters((f) => ({ ...f, ...values, page: 1 }))
+  }
+
+  // Full-page spinner only on first load; afterwards keep the filters
+  // mounted so typing/selecting doesn't lose focus.
+  if (isInitialLoading) {
     return <PageSpinner />
   }
 
+  const isFiltered = !!(filters.climbType || filters.from || filters.to)
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-rock-900">Climbing Journal</h1>
-          <p className="text-rock-600">Track your climbing progress</p>
+    <div className="space-y-4 sm:space-y-6">
+      <PageHeader
+        title="Journal"
+        subtitle={total > 0 ? `${total} ${total === 1 ? 'climb' : 'climbs'}${isFiltered ? ' match your filters' : ' logged'}` : 'Every climb you log, in one place'}
+        actions={
+          <Button onClick={() => setShowModal(true)} variant="success">
+            <Plus className="w-4 h-4" aria-hidden="true" />
+            Log climb
+          </Button>
+        }
+      />
+
+      <ClimbFilters
+        values={{ climbType: filters.climbType, from: filters.from, to: filters.to }}
+        onChange={handleFilterChange}
+      />
+
+      {error ? (
+        <Card><ErrorState onRetry={refetch} /></Card>
+      ) : climbs.length > 0 ? (
+        <div className={`space-y-3 transition-opacity ${isLoading ? 'opacity-60' : ''}`} aria-busy={isLoading}>
+          {climbs.map((climb) => (
+            <ClimbCard
+              key={climb.id}
+              climb={climb}
+              onEdit={setEditingClimb}
+              onDelete={setDeleteConfirm}
+            />
+          ))}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={(p) => setFilters((f) => ({ ...f, page: p }))}
+          />
         </div>
-        <Button onClick={() => setShowModal(true)} variant="success">
-          Log Climb
-        </Button>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-4">
-        <Select
-          value={filters.climbType}
-          onChange={(e) => setFilters({ ...filters, climbType: e.target.value, page: 1 })}
-          options={CLIMB_TYPE_OPTIONS}
-          className="sm:w-40"
-        />
-        <Input
-          type="date"
-          value={filters.from}
-          onChange={(e) => setFilters({ ...filters, from: e.target.value, page: 1 })}
-          placeholder="From"
-          className="sm:w-40"
-        />
-        <Input
-          type="date"
-          value={filters.to}
-          onChange={(e) => setFilters({ ...filters, to: e.target.value, page: 1 })}
-          placeholder="To"
-          className="sm:w-40"
-        />
-      </div>
-
-      {climbs.length > 0 ? (
-        <>
-          <div className="space-y-4">
-            {climbs.map((climb) => (
-              <ClimbCard
-                key={climb.id}
-                climb={climb}
-                onEdit={setEditingClimb}
-                onDelete={setDeleteConfirm}
-              />
-            ))}
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setFilters({ ...filters, page: page - 1 })}
-                disabled={page === 1}
-              >
-                <ChevronLeft className="w-4 h-4" />
+      ) : isFiltered ? (
+        <Card>
+          <EmptyState
+            icon={SearchX}
+            title="No climbs match"
+            message="Try a different type or date range."
+            action={
+              <Button variant="secondary" onClick={() => handleFilterChange({ climbType: '', from: '', to: '' })}>
+                Clear filters
               </Button>
-              <span className="text-sm text-rock-600">
-                Page {page} of {totalPages}
-              </span>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setFilters({ ...filters, page: page + 1 })}
-                disabled={page === totalPages}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          )}
-        </>
+            }
+          />
+        </Card>
       ) : (
-        <div className="text-center py-12">
-          <BookOpen className="w-12 h-12 text-rock-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-rock-900 mb-2">No climbs found</h3>
-          <p className="text-rock-500 mb-4">
-            {filters.climbType || filters.from || filters.to
-              ? 'Try adjusting your filters'
-              : 'Start logging your climbs to track your progress'}
-          </p>
-          {!filters.climbType && !filters.from && !filters.to && (
-            <Button onClick={() => setShowModal(true)} variant="success">
-              Log Your First Climb
-            </Button>
-          )}
-        </div>
+        <Card>
+          <EmptyState
+            icon={BookOpen}
+            title="Your journal is empty"
+            message="Start logging your climbs to track your progress."
+            action={
+              <Button onClick={() => setShowModal(true)} variant="success">
+                <Plus className="w-4 h-4" aria-hidden="true" />
+                Log your first climb
+              </Button>
+            }
+          />
+        </Card>
       )}
 
       <QuickAddFAB onClick={() => setShowModal(true)} />
@@ -184,7 +163,8 @@ export default function JournalPage() {
         size="lg"
       >
         <ClimbForm
-          routes={routes.filter((r) => r.isActive !== false)}
+          routes={activeRoutes}
+          routesLoading={routesLoading}
           onSubmit={handleCreateClimb}
           onCancel={() => setShowModal(false)}
         />
@@ -198,29 +178,23 @@ export default function JournalPage() {
       >
         <ClimbForm
           climb={editingClimb}
-          routes={routes.filter((r) => r.isActive !== false)}
+          routes={routes}
           onSubmit={handleUpdateClimb}
           onCancel={() => setEditingClimb(null)}
         />
       </Modal>
 
-      <Modal
+      <ConfirmDialog
         isOpen={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}
-        title="Delete Climb"
-      >
-        <p className="text-rock-600 mb-4">
-          Are you sure you want to delete this climb?
-        </p>
-        <div className="flex gap-3 justify-end">
-          <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={handleDeleteClimb}>
-            Delete
-          </Button>
-        </div>
-      </Modal>
+        onConfirm={handleDeleteClimb}
+        title="Delete climb?"
+        message={
+          <>
+            This removes your climb on <strong>{deleteConfirm?.route?.name ?? 'this route'}</strong> and its points. This can't be undone.
+          </>
+        }
+      />
     </div>
   )
 }

@@ -39,6 +39,12 @@ export interface UserSummary {
   profilePicture?: string
 }
 
+export type Relationship = 'FRIENDS' | 'OUTGOING' | 'INCOMING' | 'NONE'
+
+export interface UserSearchResult extends UserSummary {
+  relationship?: Relationship
+}
+
 export interface Friendship {
   id: string
   requesterId: string

@@ -47,9 +47,9 @@ export default function LoginForm() {
   return (
     <Card>
       <CardBody>
-        <h2 className="text-2xl font-bold text-rock-900 mb-6 text-center">
-          Welcome Back
-        </h2>
+        <h1 className="text-xl sm:text-2xl font-bold text-rock-900 mb-6 text-center">
+          Welcome back
+        </h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             label="Email"
@@ -70,7 +70,7 @@ export default function LoginForm() {
             autoComplete="current-password"
           />
           <Button type="submit" className="w-full" isLoading={isLoading}>
-            Sign In
+            Sign in
           </Button>
         </form>
         <p className="mt-4 text-center text-sm text-rock-600">

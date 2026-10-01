@@ -36,8 +36,9 @@ export function useLocations() {
 
   const updateLocation = async (id: string, data: UpdateLocationRequest) => {
     const updatedLocation = await locationsApi.update(id, data)
+    // Merge so server-computed fields (routeCount, user) aren't lost.
     setLocations((prev) =>
-      prev.map((loc) => (loc.id === id ? updatedLocation : loc))
+      prev.map((loc) => (loc.id === id ? { ...loc, ...updatedLocation } : loc))
     )
     return updatedLocation
   }
