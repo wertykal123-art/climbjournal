@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Climb, Route, ClimbType } from '@/types/models'
 import { CreateClimbRequest, UpdateClimbRequest } from '@/types/api'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import Select from '@/components/ui/Select'
+import RoutePicker from './RoutePicker'
+import { getLastClimbType } from '@/utils/prefs'
 import Textarea from '@/components/ui/Textarea'
 import EmptyState from '@/components/ui/EmptyState'
 import { InlineSpinner } from '@/components/ui/Spinner'
@@ -12,8 +13,6 @@ import { Star, Route as RouteIcon, Plus } from 'lucide-react'
 import { formatDateISO } from '@/utils/formatters'
 import { calculatePoints } from '@/utils/points'
 import { CLIMB_TYPE_OPTIONS } from '@/utils/colors'
-import { useGradingSystem } from '@/hooks/useGradingSystem'
-import { formatGradeWithSecondary } from '@/utils/grades'
 
 interface ClimbFormProps {
   climb?: Climb | null
@@ -23,6 +22,12 @@ interface ClimbFormProps {
   onCancel: () => void
   /** While true and no routes are known yet, show a spinner instead of the empty state. */
   routesLoading?: boolean
+  /** Style to preselect for a new climb (defaults to the last style used). */
+  defaultClimbType?: ClimbType
+  recentRouteIds?: string[]
+  preferredLocationId?: string | null
+  /** Enables "New route" in the picker. */
+  onCreateRoute?: (nameHint: string) => void
 }
 
 const TYPE_HINTS: Partial<Record<ClimbType, string>> = {
@@ -33,25 +38,40 @@ const TYPE_HINTS: Partial<Record<ClimbType, string>> = {
   TRY: "Didn't send (yet)",
 }
 
-export default function ClimbForm({ climb, routes, defaultRouteId, onSubmit, onCancel, routesLoading }: ClimbFormProps) {
+export default function ClimbForm({
+  climb,
+  routes,
+  defaultRouteId,
+  onSubmit,
+  onCancel,
+  routesLoading,
+  defaultClimbType,
+  recentRouteIds,
+  preferredLocationId,
+  onCreateRoute,
+}: ClimbFormProps) {
   // The modal unmounts this form when closed, so props are read once on
   // mount. Re-syncing on every new `routes` array wiped in-progress edits.
-  const [routeId, setRouteId] = useState(() => climb?.routeId ?? defaultRouteId ?? routes[0]?.id ?? '')
+  // New climbs start with no route unless one was given, so the picker opens.
+  const [routeId, setRouteId] = useState(() => climb?.routeId ?? defaultRouteId ?? '')
   const [date, setDate] = useState(() => formatDateISO(climb ? new Date(climb.date) : new Date()))
-  const [climbType, setClimbType] = useState<ClimbType>(climb?.climbType ?? 'RP')
+  const [climbType, setClimbType] = useState<ClimbType>(() => climb?.climbType ?? defaultClimbType ?? getLastClimbType())
   const [attemptCount, setAttemptCount] = useState(String(climb?.attemptCount ?? 1))
   const [personalRating, setPersonalRating] = useState(climb?.personalRating ?? 0)
   const [comments, setComments] = useState(climb?.comments ?? '')
   const [isLoading, setIsLoading] = useState(false)
 
-  const { getEffectiveSystem } = useGradingSystem()
-
-  // Routes may arrive after the form opens; pick a default once they do.
+  // A default route may only appear in the list once routes have loaded,
+  // or change later (a route just created from the picker); adopt each new
+  // default once, without overriding the user's later picks.
+  const appliedDefaultRef = useRef<string | undefined>(climb ? undefined : defaultRouteId)
   useEffect(() => {
-    if (!routeId && routes.length > 0) {
-      setRouteId(defaultRouteId ?? routes[0].id)
+    if (climb || !defaultRouteId || appliedDefaultRef.current === defaultRouteId && routeId) return
+    if (routes.some((r) => r.id === defaultRouteId)) {
+      appliedDefaultRef.current = defaultRouteId
+      setRouteId(defaultRouteId)
     }
-  }, [routeId, routes, defaultRouteId])
+  }, [climb, routeId, routes, defaultRouteId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -86,23 +106,17 @@ export default function ClimbForm({ climb, routes, defaultRouteId, onSubmit, onC
     }
   }
 
-  const routeOptions = useMemo(() => routes.map((r) => {
-    const effectiveSystem = getEffectiveSystem(r.location)
-    const gradeLabel = formatGradeWithSecondary(r.difficultyFrench, effectiveSystem)
-    return {
-      value: r.id,
-      label: `${r.name} (${gradeLabel})${r.location?.name ? ` · ${r.location.name}` : ''}`,
-    }
-  }), [routes, getEffectiveSystem])
-
   // Editing a climb whose route is no longer in the (active-only) list:
-  // still show it so the disabled select isn't blank.
-  const editingRouteMissing = climb && !routes.some((r) => r.id === climb.routeId)
-  const selectOptions = editingRouteMissing && climb?.route
-    ? [{ value: climb.routeId, label: climb.route.name }, ...routeOptions]
-    : routeOptions
+  // still show it so the picker isn't blank.
+  const pickerRoutes = useMemo(
+    () =>
+      climb?.route && !routes.some((r) => r.id === climb.routeId)
+        ? [climb.route as Route, ...routes]
+        : routes,
+    [climb, routes]
+  )
 
-  const selectedRoute = routes.find((r) => r.id === routeId) ?? (climb?.route as Route | undefined)
+  const selectedRoute = pickerRoutes.find((r) => r.id === routeId)
   const estimatedPoints = selectedRoute
     ? calculatePoints(selectedRoute.difficultyFrench, climbType)
     : 0
@@ -117,13 +131,20 @@ export default function ClimbForm({ climb, routes, defaultRouteId, onSubmit, onC
         compact
         icon={RouteIcon}
         title="No routes to log yet"
-        message="Climbs are logged against a route. Add a route (or a location first) and come back."
+        message="Climbs are logged against a route. Create one to get started."
         action={
           <div className="flex flex-col sm:flex-row gap-2">
-            <Link to="/routes" onClick={onCancel} className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-carabiner text-white font-medium hover:bg-carabiner-dark">
-              <Plus className="w-4 h-4" aria-hidden="true" />
-              Add a route
-            </Link>
+            {onCreateRoute ? (
+              <Button onClick={() => onCreateRoute('')}>
+                <Plus className="w-4 h-4" aria-hidden="true" />
+                Create a route
+              </Button>
+            ) : (
+              <Link to="/routes" onClick={onCancel} className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-carabiner text-white font-medium hover:bg-carabiner-dark">
+                <Plus className="w-4 h-4" aria-hidden="true" />
+                Add a route
+              </Link>
+            )}
             <Button variant="secondary" onClick={onCancel}>Close</Button>
           </div>
         }
@@ -133,12 +154,13 @@ export default function ClimbForm({ climb, routes, defaultRouteId, onSubmit, onC
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Select
-        label="Route"
+      <RoutePicker
+        routes={pickerRoutes}
         value={routeId}
-        onChange={(e) => setRouteId(e.target.value)}
-        options={selectOptions}
-        required
+        onChange={setRouteId}
+        recentRouteIds={recentRouteIds}
+        preferredLocationId={preferredLocationId}
+        onCreateNew={climb ? undefined : onCreateRoute}
         disabled={!!climb}
       />
 

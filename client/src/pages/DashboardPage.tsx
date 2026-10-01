@@ -1,44 +1,36 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useOverviewStats, useTimelineStats } from '@/hooks/useStats'
 import { useClimbs } from '@/hooks/useClimbs'
-import { useRoutes } from '@/hooks/useRoutes'
 import OverviewCards from '@/components/stats/OverviewCards'
 import TimelineChart from '@/components/stats/TimelineChart'
 import ClimbCard from '@/components/climbs/ClimbCard'
-import ClimbForm from '@/components/climbs/ClimbForm'
+import LogClimbModal from '@/components/climbs/LogClimbModal'
+import { useSession } from '@/context/SessionContext'
+import { useElapsed } from '@/hooks/useElapsed'
 import QuickAddFAB from '@/components/climbs/QuickAddFAB'
-import Modal from '@/components/ui/Modal'
-import Button from '@/components/ui/Button'
+import Button, { LinkButton } from '@/components/ui/Button'
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card'
 import { PageSpinner, InlineSpinner } from '@/components/ui/Spinner'
 import EmptyState, { ErrorState } from '@/components/ui/EmptyState'
 import PageHeader from '@/components/ui/PageHeader'
-import { showToast } from '@/components/ui/Toast'
-import { getErrorMessage } from '@/api/client'
-import { ArrowRight, Plus, BookOpen } from 'lucide-react'
+import { ArrowRight, Plus, BookOpen, Play, Timer } from 'lucide-react'
+import { formatPoints } from '@/utils/formatters'
 
 export default function DashboardPage() {
   const { user } = useAuth()
   const { stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useOverviewStats()
   const { data: timelineData, isLoading: timelineLoading, error: timelineError, refetch: refetchTimeline } = useTimelineStats({ period: 'year', groupBy: 'month' })
-  const { climbs, isInitialLoading: climbsLoading, error: climbsError, createClimb, refetch: refetchClimbs } = useClimbs({ limit: 5 })
-  const { routes, isInitialLoading: routesLoading } = useRoutes()
-  const [showClimbModal, setShowClimbModal] = useState(false)
+  const { climbs, isInitialLoading: climbsLoading, error: climbsError, refetch: refetchClimbs } = useClimbs({ limit: 5 })
+  const { session, summary } = useSession()
+  const elapsed = useElapsed(session?.startedAt)
+  const [logFor, setLogFor] = useState<{ routeId?: string } | null>(null)
 
-  const activeRoutes = useMemo(() => routes.filter((r) => r.isActive !== false), [routes])
-
-  const handleCreateClimb = async (data: Parameters<typeof createClimb>[0]) => {
-    try {
-      await createClimb(data)
-      showToast('success', 'Climb logged!')
-      setShowClimbModal(false)
-      refetchStats()
-      refetchTimeline()
-    } catch (err) {
-      showToast('error', getErrorMessage(err, 'Failed to log climb'))
-    }
+  const handleLogged = () => {
+    refetchStats()
+    refetchTimeline()
+    refetchClimbs()
   }
 
   if (statsLoading && !stats && !statsError) {
@@ -53,12 +45,39 @@ export default function DashboardPage() {
         title={`Welcome back${firstName ? `, ${firstName}` : ''}!`}
         subtitle="Here's your climbing progress at a glance."
         actions={
-          <Button variant="success" onClick={() => setShowClimbModal(true)} className="hidden sm:inline-flex">
+          <Button variant="success" onClick={() => setLogFor({})} className="hidden sm:inline-flex">
             <Plus className="w-4 h-4" aria-hidden="true" />
             Log climb
           </Button>
         }
       />
+
+      <Card className={session ? 'border-send/40 bg-send-light' : ''}>
+        <CardBody className="!p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className={`p-2.5 rounded-lg shrink-0 self-start sm:self-center ${session ? 'bg-send text-white' : 'bg-carabiner-light text-carabiner'}`}>
+            <Timer className="w-5 h-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0 flex-1">
+            {session ? (
+              <>
+                <p className="font-semibold text-rock-900 truncate">Session at {session.location.name}</p>
+                <p className="text-sm text-rock-600">
+                  {elapsed} · {summary.climbCount} {summary.climbCount === 1 ? 'climb' : 'climbs'} · +{formatPoints(summary.points)} pts
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold text-rock-900">Climbing today?</p>
+                <p className="text-sm text-rock-600">Start a session to log climbs in two taps and get a recap at the end.</p>
+              </>
+            )}
+          </div>
+          <LinkButton to="/session" variant={session ? 'success' : 'primary'} className="shrink-0">
+            <Play className="w-4 h-4 fill-current" aria-hidden="true" />
+            {session ? 'Resume session' : 'Start session'}
+          </LinkButton>
+        </CardBody>
+      </Card>
 
       {statsError && !stats ? (
         <Card><ErrorState onRetry={refetchStats} /></Card>
@@ -100,7 +119,7 @@ export default function DashboardPage() {
             ) : climbs.length > 0 ? (
               <div className="space-y-3">
                 {climbs.slice(0, 5).map((climb) => (
-                  <ClimbCard key={climb.id} climb={climb} />
+                  <ClimbCard key={climb.id} climb={climb} onLogAgain={(c) => setLogFor({ routeId: c.routeId })} />
                 ))}
               </div>
             ) : (
@@ -110,7 +129,7 @@ export default function DashboardPage() {
                 title="No climbs yet"
                 message="Log your first climb to start tracking progress."
                 action={
-                  <Button size="sm" variant="success" onClick={() => setShowClimbModal(true)}>
+                  <Button size="sm" variant="success" onClick={() => setLogFor({})}>
                     <Plus className="w-4 h-4" aria-hidden="true" />
                     Log your first climb
                   </Button>
@@ -121,21 +140,14 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <QuickAddFAB onClick={() => setShowClimbModal(true)} />
+      <QuickAddFAB onClick={() => setLogFor({})} />
 
-      <Modal
-        isOpen={showClimbModal}
-        onClose={() => setShowClimbModal(false)}
-        title="Log Climb"
-        size="lg"
-      >
-        <ClimbForm
-          routes={activeRoutes}
-          routesLoading={routesLoading}
-          onSubmit={handleCreateClimb}
-          onCancel={() => setShowClimbModal(false)}
-        />
-      </Modal>
+      <LogClimbModal
+        isOpen={!!logFor}
+        onClose={() => setLogFor(null)}
+        defaultRouteId={logFor?.routeId}
+        onLogged={handleLogged}
+      />
     </div>
   )
 }

@@ -9,6 +9,7 @@ import RouteForm from '@/components/routes/RouteForm'
 import { useLocations } from '@/hooks/useLocations'
 import ClimbCard from '@/components/climbs/ClimbCard'
 import ClimbForm from '@/components/climbs/ClimbForm'
+import LogClimbModal from '@/components/climbs/LogClimbModal'
 import GradeBadge from '@/components/routes/GradeBadge'
 import Modal from '@/components/ui/Modal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -126,15 +127,9 @@ export default function RouteDetailPage() {
     loadData()
   }, [loadData])
 
-  const handleLogClimb = async (data: CreateClimbRequest) => {
-    try {
-      const newClimb = await climbsApi.create(data)
-      setClimbs((prev) => [newClimb, ...prev])
-      showToast('success', 'Climb logged!')
-      setShowClimbModal(false)
-    } catch (err) {
-      showToast('error', getErrorMessage(err, 'Failed to log climb'))
-    }
+  const handleLogged = (newClimb: Climb) => {
+    // The modal can switch routes; only list climbs on this one.
+    if (newClimb.routeId === id) setClimbs((prev) => [newClimb, ...prev])
   }
 
   const handleUpdateClimb = async (data: CreateClimbRequest) => {
@@ -358,6 +353,7 @@ export default function RouteDetailPage() {
                     key={climb.id}
                     climb={{ ...climb, route }}
                     hideRoute
+                    onLogAgain={() => setShowClimbModal(true)}
                     onEdit={setEditingClimb}
                     onDelete={setDeleteClimbConfirm}
                   />
@@ -413,14 +409,12 @@ export default function RouteDetailPage() {
         />
       </Modal>
 
-      <Modal isOpen={showClimbModal} onClose={() => setShowClimbModal(false)} title="Log Climb" size="lg">
-        <ClimbForm
-          routes={routeAsList}
-          defaultRouteId={route.id}
-          onSubmit={handleLogClimb}
-          onCancel={() => setShowClimbModal(false)}
-        />
-      </Modal>
+      <LogClimbModal
+        isOpen={showClimbModal}
+        onClose={() => setShowClimbModal(false)}
+        defaultRouteId={route.id}
+        onLogged={handleLogged}
+      />
 
       <Modal isOpen={!!editingClimb} onClose={() => setEditingClimb(null)} title="Edit Climb" size="lg">
         <ClimbForm

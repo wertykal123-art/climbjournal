@@ -5,13 +5,15 @@ import DropdownMenu from '@/components/ui/DropdownMenu'
 import GradeBadge from '@/components/routes/GradeBadge'
 import ClimbTypeBadge from './ClimbTypeBadge'
 import { formatDate, formatPoints } from '@/utils/formatters'
-import { Star, Pencil, Trash2 } from 'lucide-react'
+import { Star, Pencil, Trash2, Repeat } from 'lucide-react'
 import { useGradingSystem } from '@/hooks/useGradingSystem'
 
 interface ClimbCardProps {
   climb: Climb
   onEdit?: (climb: Climb) => void
   onDelete?: (climb: Climb) => void
+  /** Log the same route again (hidden for reset routes). */
+  onLogAgain?: (climb: Climb) => void
   /** Show who logged it (friend activity feeds). */
   user?: { id: string; displayName: string }
   /** Hide the route/location line (e.g. on the route's own page). */
@@ -33,7 +35,7 @@ export function StarRating({ rating, size = 'sm' }: { rating: number; size?: 'sm
   )
 }
 
-export default function ClimbCard({ climb, onEdit, onDelete, user, hideRoute }: ClimbCardProps) {
+export default function ClimbCard({ climb, onEdit, onDelete, onLogAgain, user, hideRoute }: ClimbCardProps) {
   const { getGradeBadgeSystem } = useGradingSystem()
   const color = climb.route?.color
 
@@ -85,6 +87,7 @@ export default function ClimbCard({ climb, onEdit, onDelete, user, hideRoute }: 
             <DropdownMenu
               label="Climb actions"
               items={[
+                { label: 'Log again', icon: Repeat, onSelect: () => onLogAgain?.(climb), hidden: !onLogAgain || climb.route?.isActive === false },
                 { label: 'Edit', icon: Pencil, onSelect: () => onEdit?.(climb), hidden: !onEdit },
                 { label: 'Delete', icon: Trash2, danger: true, onSelect: () => onDelete?.(climb), hidden: !onDelete },
               ]}

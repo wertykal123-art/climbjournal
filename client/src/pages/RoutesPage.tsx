@@ -3,7 +3,7 @@ import { useRoutes } from '@/hooks/useRoutes'
 import { useLocations } from '@/hooks/useLocations'
 import RouteCard from '@/components/routes/RouteCard'
 import RouteForm from '@/components/routes/RouteForm'
-import ClimbForm from '@/components/climbs/ClimbForm'
+import LogClimbModal from '@/components/climbs/LogClimbModal'
 import Modal from '@/components/ui/Modal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import Button, { LinkButton } from '@/components/ui/Button'
@@ -17,9 +17,7 @@ import { showToast } from '@/components/ui/Toast'
 import { getErrorMessage } from '@/api/client'
 import { Route } from '@/types/models'
 import { Plus, Route as RouteIcon, Search, SearchX, MapPin, X } from 'lucide-react'
-import { climbsApi } from '@/api/climbs.api'
 import { routesApi } from '@/api/routes.api'
-import { CreateClimbRequest } from '@/types/api'
 
 export default function RoutesPage() {
   const [searchInput, setSearchInput] = useState('')
@@ -52,8 +50,6 @@ export default function RoutesPage() {
     () => [...routes].sort((a, b) => Number(a.isActive === false) - Number(b.isActive === false)),
     [routes]
   )
-
-  const loggingRoutes = useMemo(() => (loggingClimb ? [loggingClimb] : []), [loggingClimb])
 
   const handleCreateRoute = async (data: Parameters<typeof createRoute>[0]) => {
     try {
@@ -94,17 +90,6 @@ export default function RoutesPage() {
       refetch()
     } catch (err) {
       showToast('error', getErrorMessage(err, 'Failed to mark route as reset'))
-    }
-  }
-
-  const handleLogClimb = async (data: CreateClimbRequest) => {
-    try {
-      await climbsApi.create(data)
-      showToast('success', 'Climb logged!')
-      setLoggingClimb(null)
-      refetch()
-    } catch (err) {
-      showToast('error', getErrorMessage(err, 'Failed to log climb'))
     }
   }
 
@@ -251,19 +236,12 @@ export default function RoutesPage() {
         />
       </Modal>
 
-      <Modal
+      <LogClimbModal
         isOpen={!!loggingClimb}
         onClose={() => setLoggingClimb(null)}
-        title="Log Climb"
-        size="lg"
-      >
-        <ClimbForm
-          routes={loggingRoutes}
-          defaultRouteId={loggingClimb?.id}
-          onSubmit={handleLogClimb}
-          onCancel={() => setLoggingClimb(null)}
-        />
-      </Modal>
+        defaultRouteId={loggingClimb?.id}
+        onLogged={() => refetch()}
+      />
 
       <ConfirmDialog
         isOpen={!!deleteConfirm}

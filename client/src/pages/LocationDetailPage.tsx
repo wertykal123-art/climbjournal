@@ -2,14 +2,14 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { locationsApi } from '@/api/locations.api'
 import { routesApi } from '@/api/routes.api'
-import { climbsApi } from '@/api/climbs.api'
 import { getErrorMessage } from '@/api/client'
-import { Location, Route } from '@/types/models'
-import { CreateRouteRequest, CreateClimbRequest, UpdateRouteRequest, CreateLocationRequest, UpdateLocationRequest } from '@/types/api'
+import { Climb, Location, Route } from '@/types/models'
+import { CreateRouteRequest, UpdateRouteRequest, CreateLocationRequest, UpdateLocationRequest } from '@/types/api'
 import RouteCard from '@/components/routes/RouteCard'
 import RouteForm from '@/components/routes/RouteForm'
 import GradeBadge from '@/components/routes/GradeBadge'
-import ClimbForm from '@/components/climbs/ClimbForm'
+import LogClimbModal from '@/components/climbs/LogClimbModal'
+import { useSession } from '@/context/SessionContext'
 import LocationForm from '@/components/locations/LocationForm'
 import Modal from '@/components/ui/Modal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -39,6 +39,7 @@ import {
   TrendingUp,
   Flag,
   BarChart3,
+  Timer,
 } from 'lucide-react'
 import { formatDate } from '@/utils/formatters'
 import { compareGrades, frenchToUIAA } from '@/utils/grades'
@@ -85,6 +86,7 @@ export default function LocationDetailPage() {
   const { user } = useAuth()
   const { isFriend } = useFriends()
   const { getEffectiveSystem, getGradeBadgeSystem } = useGradingSystem()
+  const { session, startSession } = useSession()
 
   const [location, setLocation] = useState<Location | null>(null)
   const [routes, setRoutes] = useState<Route[]>([])
@@ -135,10 +137,6 @@ export default function LocationDetailPage() {
 
   // Memoized so the open forms don't see a "new" list on every render.
   const locationAsList = useMemo(() => (location ? [location] : []), [location])
-  const loggingRoutes = useMemo(
-    () => (loggingClimb && location ? [{ ...loggingClimb, location }] : []),
-    [loggingClimb, location]
-  )
 
   const handleCreateRoute = async (data: CreateRouteRequest) => {
     try {
@@ -189,18 +187,11 @@ export default function LocationDetailPage() {
     }
   }
 
-  const handleLogClimb = async (data: CreateClimbRequest) => {
-    try {
-      await climbsApi.create(data)
-      showToast('success', 'Climb logged!')
-      // Bump the count locally rather than reloading the whole page.
-      setRoutes((prev) =>
-        prev.map((r) => (r.id === data.routeId ? { ...r, climbCount: (r.climbCount || 0) + 1 } : r))
-      )
-      setLoggingClimb(null)
-    } catch (err) {
-      showToast('error', getErrorMessage(err, 'Failed to log climb'))
-    }
+  const handleLogged = (climb: Climb) => {
+    // Bump the count locally rather than reloading the whole page.
+    setRoutes((prev) =>
+      prev.map((r) => (r.id === climb.routeId ? { ...r, climbCount: (r.climbCount || 0) + 1 } : r))
+    )
   }
 
   const handleUpdateLocation = async (data: CreateLocationRequest) => {
@@ -304,6 +295,19 @@ export default function LocationDetailPage() {
             <DropdownMenu
               label="Location actions"
               items={[
+                {
+                  label: session?.location.id === location.id ? 'Open session' : 'Start session here',
+                  icon: Timer,
+                  onSelect: () => {
+                    if (session?.location.id !== location.id) {
+                      if (session) {
+                        showToast('info', `Ended your session at ${session.location.name}`)
+                      }
+                      startSession(location)
+                    }
+                    navigate('/session')
+                  },
+                },
                 { label: 'Edit location', icon: Pencil, onSelect: () => setIsEditingLocation(true), hidden: !isOwner },
                 { label: 'Delete location', icon: Trash2, danger: true, onSelect: () => setShowDeleteLocation(true), hidden: !isOwner },
               ]}
@@ -453,14 +457,12 @@ export default function LocationDetailPage() {
         />
       </Modal>
 
-      <Modal isOpen={!!loggingClimb} onClose={() => setLoggingClimb(null)} title="Log Climb" size="lg">
-        <ClimbForm
-          routes={loggingRoutes}
-          defaultRouteId={loggingClimb?.id}
-          onSubmit={handleLogClimb}
-          onCancel={() => setLoggingClimb(null)}
-        />
-      </Modal>
+      <LogClimbModal
+        isOpen={!!loggingClimb}
+        onClose={() => setLoggingClimb(null)}
+        defaultRouteId={loggingClimb?.id}
+        onLogged={handleLogged}
+      />
 
       <Modal isOpen={isEditingLocation} onClose={() => setIsEditingLocation(false)} title="Edit Location" size="lg">
         <LocationForm

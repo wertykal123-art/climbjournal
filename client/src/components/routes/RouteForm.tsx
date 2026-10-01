@@ -30,13 +30,16 @@ interface RouteFormProps {
   defaultLocationId?: string
   onSubmit: (data: CreateRouteRequest) => Promise<void>
   onCancel: () => void
+  /** Prefill the name of a new route. */
+  initialName?: string
+  submitLabel?: string
 }
 
-export default function RouteForm({ route, locations, defaultLocationId, onSubmit, onCancel }: RouteFormProps) {
+export default function RouteForm({ route, locations, defaultLocationId, onSubmit, onCancel, initialName, submitLabel }: RouteFormProps) {
   // The modal unmounts the form on close, so props are read once on mount.
   // (Re-syncing on every new `locations` array wiped in-progress edits.)
   const [locationId, setLocationId] = useState(() => route?.locationId ?? defaultLocationId ?? locations[0]?.id ?? '')
-  const [name, setName] = useState(route?.name ?? '')
+  const [name, setName] = useState(route?.name ?? initialName ?? '')
   const [difficultyFrench, setDifficultyFrench] = useState(route?.difficultyFrench ?? '6a')
   const [visualId, setVisualId] = useState(route?.visualId ?? '')
   const [setter, setSetter] = useState(route?.setter ?? '')
@@ -262,7 +265,7 @@ export default function RouteForm({ route, locations, defaultLocationId, onSubmi
           Cancel
         </Button>
         <Button type="submit" isLoading={isLoading} disabled={!locationId}>
-          {route ? 'Save changes' : 'Create route'}
+          {submitLabel ?? (route ? 'Save changes' : 'Create route')}
         </Button>
       </div>
     </form>

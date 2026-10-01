@@ -11,7 +11,9 @@ import {
   User,
   X,
   Mountain,
+  Timer,
 } from 'lucide-react'
+import { useSession } from '@/context/SessionContext'
 
 interface SidebarProps {
   isOpen: boolean
@@ -21,6 +23,7 @@ interface SidebarProps {
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/journal', label: 'Journal', icon: BookOpen },
+  { to: '/session', label: 'Session', icon: Timer },
   { to: '/locations', label: 'Locations', icon: MapPin },
   { to: '/routes', label: 'Routes', icon: Route },
   { to: '/stats', label: 'Statistics', icon: BarChart3 },
@@ -30,6 +33,7 @@ const navItems = [
 ]
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const { session } = useSession()
   // Mobile drawer: Escape closes it and the page behind doesn't scroll.
   useEffect(() => {
     if (!isOpen) return
@@ -102,6 +106,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             >
               <item.icon className="w-5 h-5 shrink-0" aria-hidden="true" />
               <span>{item.label}</span>
+              {item.to === '/session' && session && (
+                <span className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-send">
+                  <span className="w-2 h-2 rounded-full bg-send animate-pulse" aria-hidden="true" />
+                  Live
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

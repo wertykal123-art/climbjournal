@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useClimbs } from '@/hooks/useClimbs'
 import { useRoutes } from '@/hooks/useRoutes'
 import ClimbCard from '@/components/climbs/ClimbCard'
 import ClimbForm from '@/components/climbs/ClimbForm'
+import LogClimbModal from '@/components/climbs/LogClimbModal'
 import ClimbFilters, { ClimbFilterValues } from '@/components/climbs/ClimbFilters'
 import QuickAddFAB from '@/components/climbs/QuickAddFAB'
 import Modal from '@/components/ui/Modal'
@@ -27,11 +28,10 @@ export default function JournalPage() {
     limit: 20,
   })
 
-  const { climbs, total, page, totalPages, isLoading, isInitialLoading, error, refetch, createClimb, updateClimb, deleteClimb } = useClimbs(filters)
-  const { routes, isInitialLoading: routesLoading } = useRoutes()
-  const activeRoutes = useMemo(() => routes.filter((r) => r.isActive !== false), [routes])
+  const { climbs, total, page, totalPages, isLoading, isInitialLoading, error, refetch, updateClimb, deleteClimb } = useClimbs(filters)
+  const { routes } = useRoutes()
 
-  const [showModal, setShowModal] = useState(false)
+  const [logFor, setLogFor] = useState<{ routeId?: string } | null>(null)
   const [editingClimb, setEditingClimb] = useState<Climb | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<Climb | null>(null)
 
@@ -45,17 +45,7 @@ export default function JournalPage() {
     }
   }, [isLoading, totalPages, filters.page])
 
-  const handleCreateClimb = async (data: Parameters<typeof createClimb>[0]) => {
-    try {
-      await createClimb(data)
-      showToast('success', 'Climb logged!')
-      setShowModal(false)
-    } catch (err) {
-      showToast('error', getErrorMessage(err, 'Failed to log climb'))
-    }
-  }
-
-  const handleUpdateClimb = async (data: Parameters<typeof createClimb>[0]) => {
+  const handleUpdateClimb = async (data: Parameters<typeof updateClimb>[1]) => {
     if (!editingClimb) return
     try {
       await updateClimb(editingClimb.id, data)
@@ -95,7 +85,7 @@ export default function JournalPage() {
         title="Journal"
         subtitle={total > 0 ? `${total} ${total === 1 ? 'climb' : 'climbs'}${isFiltered ? ' match your filters' : ' logged'}` : 'Every climb you log, in one place'}
         actions={
-          <Button onClick={() => setShowModal(true)} variant="success">
+          <Button onClick={() => setLogFor({})} variant="success">
             <Plus className="w-4 h-4" aria-hidden="true" />
             Log climb
           </Button>
@@ -117,6 +107,7 @@ export default function JournalPage() {
               climb={climb}
               onEdit={setEditingClimb}
               onDelete={setDeleteConfirm}
+              onLogAgain={(c) => setLogFor({ routeId: c.routeId })}
             />
           ))}
           <Pagination
@@ -145,7 +136,7 @@ export default function JournalPage() {
             title="Your journal is empty"
             message="Start logging your climbs to track your progress."
             action={
-              <Button onClick={() => setShowModal(true)} variant="success">
+              <Button onClick={() => setLogFor({})} variant="success">
                 <Plus className="w-4 h-4" aria-hidden="true" />
                 Log your first climb
               </Button>
@@ -154,21 +145,14 @@ export default function JournalPage() {
         </Card>
       )}
 
-      <QuickAddFAB onClick={() => setShowModal(true)} />
+      <QuickAddFAB onClick={() => setLogFor({})} />
 
-      <Modal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        title="Log Climb"
-        size="lg"
-      >
-        <ClimbForm
-          routes={activeRoutes}
-          routesLoading={routesLoading}
-          onSubmit={handleCreateClimb}
-          onCancel={() => setShowModal(false)}
-        />
-      </Modal>
+      <LogClimbModal
+        isOpen={!!logFor}
+        onClose={() => setLogFor(null)}
+        defaultRouteId={logFor?.routeId}
+        onLogged={() => refetch()}
+      />
 
       <Modal
         isOpen={!!editingClimb}
