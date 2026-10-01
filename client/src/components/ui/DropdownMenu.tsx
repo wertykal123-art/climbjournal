@@ -49,22 +49,30 @@ export default function DropdownMenu({
     if (restoreFocus) triggerRef.current?.focus()
   }, [])
 
-  useLayoutEffect(() => {
-    if (!open || !triggerRef.current) return
-    const rect = triggerRef.current.getBoundingClientRect()
-    const menuHeight = menuRef.current?.offsetHeight ?? visibleItems.length * 40 + 8
+  const updatePosition = useCallback(() => {
+    const triggerEl = triggerRef.current
+    if (!triggerEl) return false
+    const rect = triggerEl.getBoundingClientRect()
+    // Trigger scrolled out of view: the menu would float detached from it.
+    if (rect.bottom < 0 || rect.top > window.innerHeight) return false
+    const menuHeight = menuRef.current?.offsetHeight ?? 0
     const spaceBelow = window.innerHeight - rect.bottom
     const top = spaceBelow < menuHeight + 8 && rect.top > menuHeight + 8
       ? rect.top - menuHeight - 4
       : rect.bottom + 4
     let left = align === 'right' ? rect.right - MENU_WIDTH : rect.left
     left = Math.max(8, Math.min(left, window.innerWidth - MENU_WIDTH - 8))
-    setPosition({ top, left })
-  }, [open, align, visibleItems.length])
+    setPosition((prev) => (prev && prev.top === top && prev.left === left ? prev : { top, left }))
+    return true
+  }, [align])
+
+  useLayoutEffect(() => {
+    if (open) updatePosition()
+  }, [open, updatePosition, visibleItems.length])
 
   useEffect(() => {
     if (!open) return
-    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus()
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus({ preventScroll: true })
 
     const handlePointer = (e: Event) => {
       const target = e.target as Node
@@ -88,7 +96,11 @@ export default function DropdownMenu({
       }
       if (e.key === 'Tab') close()
     }
-    const handleViewportChange = () => close()
+    // Follow the trigger on scroll/resize (mobile browsers scroll for many
+    // reasons, e.g. the address bar); close only once it leaves the screen.
+    const handleViewportChange = () => {
+      if (!updatePosition()) close()
+    }
 
     document.addEventListener('mousedown', handlePointer)
     document.addEventListener('touchstart', handlePointer)
@@ -102,7 +114,7 @@ export default function DropdownMenu({
       window.removeEventListener('resize', handleViewportChange)
       window.removeEventListener('scroll', handleViewportChange, true)
     }
-  }, [open, close])
+  }, [open, close, updatePosition])
 
   // Close when navigating away (e.g. browser back).
   useEffect(() => {

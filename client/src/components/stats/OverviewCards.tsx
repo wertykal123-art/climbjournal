@@ -53,7 +53,7 @@ export default function OverviewCards({ stats }: OverviewCardsProps) {
           </CardBody>
         </Card>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
         {tiles.map((tile) => (
           <StatTile key={tile.label} {...tile} />
         ))}
